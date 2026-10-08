@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WROP 改 prompt 后重跑：时间和算力估算 · thoughts</title>
+<meta name="description" content="改完过度提示的 prompt 后，用 MiniMax H3 在一台 8×B300 上重跑 300 道 WROP 考题，要多久、多少 GPU 小时、多少钱。">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f7f6f2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css">
+<script src="/app.js" defer></script>
+</head>
+<body data-page="wrop-rerun-cost">
+<a class="skip" href="#main">跳到正文</a>
+<div class="progress" aria-hidden="true"><span id="progress-bar"></span></div>
+<nav class="topnav" aria-label="站点"><div class="topnav-inner"><a class="brand" href="/">thoughts</a><div class="topnav-links"><a href="/wrop-improvement-directions" title="WROP 后续改进方向">改进方向</a><a href="/wrop-metrics-zh" title="WROP 评测指标：是什么、怎么算、哪里弱">评测指标</a><a href="/wrop-rerun-cost" aria-current="page" title="WROP 改 prompt 后重跑：时间和算力估算">重跑成本</a></div></div></nav>
+
+<header class="hero">
+  <div class="hero-inner" data-section="intro" id="intro">
+    <p class="eyebrow">thoughts.ycjian.com · 研究笔记</p>
+    <h1>WROP 改 prompt 后重跑：时间和算力估算</h1>
+    <p class="lead">日期：2026-10-08（新加坡时间）。所有数字都是数量级估算，不是实测，也不是厂商承诺。</p>
+    <ul class="chips" aria-label="概要"><li>8×B300</li><li>MiniMax H3</li><li>约 $100–350</li><li>数量级估算</li><li>选中文字即可评论</li></ul>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc" aria-label="目录">
+    <p class="toc-title">目录</p>
+    <ol><li><a href="#s0"><span class="toc-n">0</span><span class="toc-t">一句话结论</span></a></li><li><a href="#s1"><span class="toc-n">1</span><span class="toc-t">范围和假设</span></a></li><li><a href="#s2"><span class="toc-n">2</span><span class="toc-t">每道题要多久</span></a></li><li><a href="#s3"><span class="toc-n">3</span><span class="toc-t">300 道题一共多少算力</span></a></li><li><a href="#s4"><span class="toc-n">4</span><span class="toc-t">重训 PWM-WROP：另算</span></a></li><li><a href="#s5"><span class="toc-n">5</span><span class="toc-t">费用</span></a></li><li><a href="#s6"><span class="toc-n">6</span><span class="toc-t">敏感性：跑多少题</span></a></li><li><a href="#s7"><span class="toc-n">7</span><span class="toc-t">最大的不确定因素</span></a></li><li><a href="#sources"><span class="toc-n">·</span><span class="toc-t">来源</span></a></li></ol>
+    <a class="toc-comments" href="#comments">全部评论 <span class="count" id="toc-count">0</span></a>
+  </nav>
+
+  <main id="main">
+    <article class="doc">
+<section class="card" id="s0" data-section="s0" aria-labelledby="s0-h"><h2 id="s0-h"><span class="badge" aria-hidden="true">0</span><span class="h-num">0. </span><span class="h-t">一句话结论</span></h2>
+<ul>
+<li>用 MiniMax 视频模型重跑 300 道题，在一台 8×B300 上大约要 <strong>3–8 小时</strong>（含装环境），花 <strong>约 $100–350（约 ¥700–2,500）</strong>，中间值约 <strong>$170（约 ¥1,200）</strong>。</li>
+<li>用 MiniMax 官方 API 跑同样 300 道，大约 <strong>$180–360</strong>，不用装任何东西。两条路钱差不多。</li>
+<li>如果还要用新 prompt <strong>重训 PWM-WROP</strong>，那是另一笔账：约 <strong>15–50 节点小时，$480–1,600</strong>，外加把训练代码从 Trainium 移到 GPU 的工程量。</li>
+</ul>
+<aside class="callout callout-warning" role="note" id="s0-warning-64a65f" data-anchor-id="s0-warning-64a65f"><p class="callout-title">模型名</p><p>“MiniMax M3” 是语言模型，不能生成视频。我按 <strong>MiniMax H3</strong>（论文里用的视频模型）来算。</p>
+</aside>
+</section>
+<section class="card" id="s1" data-section="s1" aria-labelledby="s1-h"><h2 id="s1-h"><span class="badge" aria-hidden="true">1</span><span class="h-num">1. </span><span class="h-t">范围和假设</span></h2>
+<p data-anchor-id="s1-p-50a4df"><strong>模型是哪个</strong></p>
+<div class="table-wrap wide" data-anchor-id="s1-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">名字</th>
+<th scope="col">是什么</th>
+<th scope="col">能不能重跑 WROP</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="名字"><span class="cv">MiniMax M3</span></td>
+<td data-label="是什么"><span class="cv">2026-06 发布的开源多模态<strong>语言模型</strong>（428B，激活 23B）。输入可以是视频，输出只有文字。</span></td>
+<td data-label="能不能重跑 WROP"><span class="cv">不能生成视频。可以用来改写 prompt，或者当自动评委。</span></td>
+</tr>
+<tr><td class="k" data-label="名字"><span class="cv">MiniMax H3（Hailuo 03）</span></td>
+<td data-label="是什么"><span class="cv">2026-07/08 发布的视频模型，开源权重（H3-Base，33B DiT）。论文表 1 里的 “MiniMax H3” 就是它，走 FAL API，参考生视频模式。</span></td>
+<td data-label="能不能重跑 WROP"><span class="cv">能。本文按它估算。</span></td>
+</tr>
+</tbody>
+</table></div>
+<p data-anchor-id="s1-p-b42ce1"><strong>每道题的工作量</strong>（来自论文第 3 节、表 1、第 4.3 节）</p>
+<ul>
+<li>输入：60 帧参考视频（2.5 秒，24 fps）+ 文字 prompt。2 道题是 90 帧输入。</li>
+<li>MiniMax H3 输出：1344×768、24 fps、124 帧（约 5.2 秒）。这正好是 H3 官方基准测试用的尺寸。</li>
+<li>用的是 H3 的 <strong>Ref2VA</strong>（参考生视频）权重，不是纯文生视频。参考视频会加长序列，所以比纯文生视频慢。</li>
+</ul>
+<p data-anchor-id="s1-p-c20c8a"><strong>300 道题里有多少要改 prompt</strong></p>
+<ul>
+<li>197 个 prompt 变体：142 个 OVER，55 个 OK。</li>
+<li>我按场景脚本把 300 道考题对上 prompt：<strong>196 道用 OVER prompt，104 道用 OK prompt</strong>。（假设考题的 prompt 和脚本里的 prompt 一样。）</li>
+<li>所以只改 OVER 的话，真正要重新生成的是 196 道。</li>
+</ul>
+<p data-anchor-id="s1-p-d5d8fe"><strong>不在范围内</strong></p>
+<ul>
+<li>只是推理（生成视频），不训练。</li>
+<li>不含人工打分（Elo）的费用。像素指标（SSIM、LPIPS 等）用 CPU/单卡几分钟就能算完，可以忽略。</li>
+</ul>
+</section>
+<section class="card" id="s2" data-section="s2" aria-labelledby="s2-h"><h2 id="s2-h"><span class="badge" aria-hidden="true">2</span><span class="h-num">2. </span><span class="h-t">每道题要多久</span></h2>
+<p data-anchor-id="s2-p-560511"><strong>已发布的实测数据</strong>（SGLang 官方基准，8×B300 一台，Ulysses 8，一次一个请求，1344×768×124 帧，50 步）：</p>
+<div class="table-wrap wide" data-anchor-id="s2-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">权重</th>
+<th scope="col">精度</th>
+<th scope="col">每段视频</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="权重"><span class="cv">FL2VA（文生视频）</span></td>
+<td data-label="精度"><span class="cv">BF16</span></td>
+<td data-label="每段视频"><span class="cv">19.0 秒</span></td>
+</tr>
+<tr><td class="k" data-label="权重"><span class="cv">Ref2VA（参考生视频）</span></td>
+<td data-label="精度"><span class="cv">BF16</span></td>
+<td data-label="每段视频"><span class="cv">29.1 秒</span></td>
+</tr>
+<tr><td class="k" data-label="权重"><span class="cv">Ref2VA</span></td>
+<td data-label="精度"><span class="cv">FP8</span></td>
+<td data-label="每段视频"><span class="cv">27.1 秒</span></td>
+</tr>
+</tbody>
+</table></div>
+<p data-anchor-id="s2-p-ec0114">另一组数据：8×H200 上，带参考视频的 V2V 每步 2.57 秒，纯文生视频每步 0.75 秒，慢 3.4 倍。WROP 的参考视频只有 2.5 秒，所以不会慢这么多。</p>
+<p data-anchor-id="s2-p-e6fb76"><strong>我的估算（每道题）</strong></p>
+<div class="table-wrap wide stack" data-anchor-id="s2-table-2" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">情况</th>
+<th scope="col">8×B300 一起跑一段</th>
+<th scope="col">1×B300 单独跑一段</th>
+<th scope="col">什么情况下会这样</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="情况"><span class="cv">低</span></td>
+<td data-label="8×B300 一起跑一段"><span class="cv">约 25 秒</span></td>
+<td data-label="1×B300 单独跑一段"><span class="cv">约 2.5–3 分钟</span></td>
+<td data-label="什么情况下会这样"><span class="cv">参考视频开销小，和官方 Ref2VA 数字一样</span></td>
+</tr>
+<tr><td class="k" data-label="情况"><span class="cv">中</span></td>
+<td data-label="8×B300 一起跑一段"><span class="cv">约 40 秒</span></td>
+<td data-label="1×B300 单独跑一段"><span class="cv">约 5 分钟</span></td>
+<td data-label="什么情况下会这样"><span class="cv">2.5 秒参考视频让序列变长约 1.5 倍</span></td>
+</tr>
+<tr><td class="k" data-label="情况"><span class="cv">高</span></td>
+<td data-label="8×B300 一起跑一段"><span class="cv">约 70 秒</span></td>
+<td data-label="1×B300 单独跑一段"><span class="cv">约 8–9 分钟</span></td>
+<td data-label="什么情况下会这样"><span class="cv">按 H200 上 V2V 的慢速比例推算</span></td>
+</tr>
+</tbody>
+</table></div>
+<p data-anchor-id="s2-p-b70aac">“1×B300” 一栏是推算：B300 有 288 GB 显存，整套权重（约 134 GiB）放得下一张卡。单卡时间 ≈ 8 卡时间 × 8 × 并行效率（0.7–0.9）。交叉检查：一张 288 GB 的 AMD MI355X 跑 209 帧要约 5 分钟，折算到 124 帧约 2–2.5 分钟，对得上“低”这一档。</p>
+<p data-anchor-id="s2-p-f70df5"><strong>8×B300 上怎么跑最快</strong></p>
+<ol class="steps">
+<li>用 SGLang 或 vLLM-Omni 的 H3 服务，权重常驻显存。</li>
+<li><strong>不要</strong>指望把多个请求拼成一批。vLLM-Omni 实测：多个大请求同时跑，总吞吐不提高。</li>
+<li>不需要 CFG 并行。H3 已经做了 CFG 蒸馏，每步只算一次。</li>
+<li>要吞吐就开多个副本：8 个单卡副本，或 2 个 4 卡副本。这样比 1 个 8 卡副本多出约 10–30% 吞吐。要单段最快就用 1 个 8 卡副本。</li>
+<li>FP8 只省显存，基本不省时间（29.1 → 27.1 秒）。为了和论文可比，用 BF16。</li>
+<li>Cache-DiT 这类加速能快 1.3–1.4 倍，但会改变输出（SSIM 降到 0.93–0.97）。评测时不要开。</li>
+</ol>
+</section>
+<section class="card" id="s3" data-section="s3" aria-labelledby="s3-h"><h2 id="s3-h"><span class="badge" aria-hidden="true">3</span><span class="h-num">3. </span><span class="h-t">300 道题一共多少算力</span></h2>
+<div class="table-wrap wide stack" data-anchor-id="s3-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">情况</th>
+<th scope="col">生成本身</th>
+<th scope="col">每次租用的准备时间</th>
+<th scope="col">总时间（一台 8×B300）</th>
+<th scope="col">GPU 小时</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="情况"><span class="cv">低</span></td>
+<td data-label="生成本身"><span class="cv">300 × 25 秒 ≈ 2.0 小时</span></td>
+<td data-label="每次租用的准备时间"><span class="cv">约 0.5–1 小时</span></td>
+<td data-label="总时间（一台 8×B300）"><span class="cv">约 2.5–3 小时</span></td>
+<td data-label="GPU 小时"><span class="cv">约 20–25</span></td>
+</tr>
+<tr><td class="k" data-label="情况"><span class="cv">中</span></td>
+<td data-label="生成本身"><span class="cv">300 × 40 秒 ≈ 3.3 小时</span></td>
+<td data-label="每次租用的准备时间"><span class="cv">约 0.5–1 小时</span></td>
+<td data-label="总时间（一台 8×B300）"><span class="cv">约 4–4.5 小时</span></td>
+<td data-label="GPU 小时"><span class="cv">约 32–36</span></td>
+</tr>
+<tr><td class="k" data-label="情况"><span class="cv">高</span></td>
+<td data-label="生成本身"><span class="cv">300 × 70 秒 ≈ 5.8 小时</span></td>
+<td data-label="每次租用的准备时间"><span class="cv">约 1–2 小时（要租两次）</span></td>
+<td data-label="总时间（一台 8×B300）"><span class="cv">约 7–8 小时</span></td>
+<td data-label="GPU 小时"><span class="cv">约 56–64</span></td>
+</tr>
+</tbody>
+</table></div>
+<p data-anchor-id="s3-p-691ebd">准备时间包括：下载 Ref2VA 权重（约 144 GB）、加载、预热、跑几道冒烟测试。第一次搭环境如果出问题，还会多花 1–3 小时。</p>
+<aside class="callout callout-warning" role="note" id="s3-warning-79e46d" data-anchor-id="s3-warning-79e46d"><p class="callout-title">两个实际限制（来自 Second Mate 拿到的学术云条款）</p><ul>
+<li>每次只能租 4 小时。中、高两档都可能要租两次，每次都要重新下权重。</li>
+<li>工作盘只有 50 GiB，放不下 144 GB 权重。只能放在本地 NVMe 上，归还机器时会被清空。</li>
+</ul>
+</aside>
+</section>
+<section class="card" id="s4" data-section="s4" aria-labelledby="s4-h"><h2 id="s4-h"><span class="badge" aria-hidden="true">4</span><span class="h-num">4. </span><span class="h-t">重训 PWM-WROP：另算</span></h2>
+<ul>
+<li>只改测试 prompt，<strong>不需要</strong>重训任何模型。外部模型（包括 MiniMax）只是重新生成。</li>
+<li>PWM-WROP 用新 prompt 重新<strong>推理</strong> 300 道：320×192、35 步，模型 16B。估计不到 0.5 节点小时（约 $16）。前提是检查点能下载到。</li>
+<li>如果还要用改写后的 prompt <strong>重训</strong> PWM-WROP（1.5M 条训练样本），估算如下：
+<ul>
+<li>论文实测：一台 trn2.48xlarge 每步 5.7 秒，批量 16，每秒 12,454 token。1.5M 条按这个速度要约 150 小时（在 288×512 尺寸下）。</li>
+<li>换到 8×B300（BF16 稠密 18 PFLOPS），按 320×192 的 token 数和 20–40% 利用率粗算：约 <strong>10–20 节点小时</strong>训练。加上数据下载（训练集 214 GB）、视频编码和调试，约 <strong>15–50 节点小时</strong>。</li>
+<li>费用：<strong>约 $480–1,600（约 ¥3,400–11,000）</strong>。</li>
+<li>最大的成本是工程：PWM 训练代码是为 Trainium 写的，要移到 GPU 上。</li>
+<li>这一条比重跑测试大 5–10 倍，不要和上面的数字混在一起。</li>
+</ul>
+</li>
+</ul>
+</section>
+<section class="card" id="s5" data-section="s5" aria-labelledby="s5-h"><h2 id="s5-h"><span class="badge" aria-hidden="true">5</span><span class="h-num">5. </span><span class="h-t">费用</span></h2>
+<p data-anchor-id="s5-p-e02fa8">价格来源：National Compute 公共研究（.edu）价，B300 每卡每小时 $4，整台 8 卡 <strong>$32/小时</strong>。新用户有 $100 赠送额度。汇率按 1 美元 ≈ 7.1 元粗算（未核实当天汇率）。</p>
+<div class="table-wrap wide stack" data-anchor-id="s5-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">方案</th>
+<th scope="col">节点小时</th>
+<th scope="col">美元</th>
+<th scope="col">人民币</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="方案"><span class="cv">重跑 300 道，低</span></td>
+<td data-label="节点小时"><span class="cv">约 2.5–3</span></td>
+<td data-label="美元"><span class="cv">约 $80–100</span></td>
+<td data-label="人民币"><span class="cv">约 ¥570–700</span></td>
+</tr>
+<tr><td class="k" data-label="方案"><span class="cv">重跑 300 道，中</span></td>
+<td data-label="节点小时"><span class="cv">约 4–4.5</span></td>
+<td data-label="美元"><span class="cv">约 $130–150</span></td>
+<td data-label="人民币"><span class="cv">约 ¥900–1,050</span></td>
+</tr>
+<tr><td class="k" data-label="方案"><span class="cv">重跑 300 道，高</span></td>
+<td data-label="节点小时"><span class="cv">约 7–8</span></td>
+<td data-label="美元"><span class="cv">约 $220–260</span></td>
+<td data-label="人民币"><span class="cv">约 ¥1,600–1,800</span></td>
+</tr>
+<tr><td class="k" data-label="方案"><span class="cv">加上第一次搭环境的调试</span></td>
+<td data-label="节点小时"><span class="cv">+1–3</span></td>
+<td data-label="美元"><span class="cv">+$32–96</span></td>
+<td data-label="人民币"><span class="cv">+¥230–680</span></td>
+</tr>
+<tr><td class="k" data-label="方案"><span class="cv"><strong>对照：官方 API 跑 300 道</strong></span></td>
+<td data-label="节点小时"><span class="cv">0</span></td>
+<td data-label="美元"><span class="cv">约 $180（MiniMax 官方 768P）到 $360（fal 标价）</span></td>
+<td data-label="人民币"><span class="cv">约 ¥1,300–2,600</span></td>
+</tr>
+<tr><td class="k" data-label="方案"><span class="cv">重训 PWM-WROP（另算）</span></td>
+<td data-label="节点小时"><span class="cv">约 15–50</span></td>
+<td data-label="美元"><span class="cv">约 $480–1,600</span></td>
+<td data-label="人民币"><span class="cv">约 ¥3,400–11,000</span></td>
+</tr>
+</tbody>
+</table></div>
+<p data-anchor-id="s5-p-f2780b">API 怎么算：MiniMax 官方 768P 输出 $0.08/秒，输入参考视频按同价计秒。每道题约 5 秒输出 + 2.5 秒输入 ≈ $0.60。fal 页面上 768p 标价 $0.16/秒，各家标价不一致。</p>
+</section>
+<section class="card" id="s6" data-section="s6" aria-labelledby="s6-h"><h2 id="s6-h"><span class="badge" aria-hidden="true">6</span><span class="h-num">6. </span><span class="h-t">敏感性：跑多少题</span></h2>
+<div class="table-wrap wide stack" data-anchor-id="s6-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">方案</th>
+<th scope="col">生成数量</th>
+<th scope="col">节点小时（低–高）</th>
+<th scope="col">美元（含一次准备）</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="方案"><span class="cv">只看 OK 题（104 道，prompt 不变）</span></td>
+<td data-label="生成数量"><span class="cv">0（直接用论文发布的输出）或 104</span></td>
+<td data-label="节点小时（低–高）"><span class="cv">0 或 约 1.2–3</span></td>
+<td data-label="美元（含一次准备）"><span class="cv">$0 或 约 $40–100</span></td>
+</tr>
+<tr><td class="k" data-label="方案"><span class="cv">只重跑 OVER 题（196 道）</span></td>
+<td data-label="生成数量"><span class="cv">196</span></td>
+<td data-label="节点小时（低–高）"><span class="cv">约 1.8–4.8</span></td>
+<td data-label="美元（含一次准备）"><span class="cv">约 $60–160</span></td>
+</tr>
+<tr><td class="k" data-label="方案"><span class="cv">全部 300 道</span></td>
+<td data-label="生成数量"><span class="cv">300</span></td>
+<td data-label="节点小时（低–高）"><span class="cv">约 2.5–8</span></td>
+<td data-label="美元（含一次准备）"><span class="cv">约 $80–260</span></td>
+</tr>
+<tr><td class="k" data-label="方案"><span class="cv"><strong>推荐：新旧 prompt 各跑 300 道</strong></span></td>
+<td data-label="生成数量"><span class="cv">600</span></td>
+<td data-label="节点小时（低–高）"><span class="cv">约 5–13</span></td>
+<td data-label="美元（含一次准备）"><span class="cv">约 $160–420</span></td>
+</tr>
+<tr><td class="k" data-label="方案"><span class="cv">再乘 3 个随机种子</span></td>
+<td data-label="生成数量"><span class="cv">×3</span></td>
+<td data-label="节点小时（低–高）"><span class="cv">×3</span></td>
+<td data-label="美元（含一次准备）"><span class="cv">×3</span></td>
+</tr>
+<tr><td class="k" data-label="方案"><span class="cv">只用一部分训练题（例如 10%）重训 PWM-WROP</span></td>
+<td data-label="生成数量"><span class="cv">—</span></td>
+<td data-label="节点小时（低–高）"><span class="cv">约 2–5（训练）+ 工程</span></td>
+<td data-label="美元（含一次准备）"><span class="cv">约 $60–160 + 工程</span></td>
+</tr>
+</tbody>
+</table></div>
+<aside class="callout callout-tip" role="note" id="s6-tip-c556f8" data-anchor-id="s6-tip-c556f8"><p class="callout-title">为什么推荐新旧 prompt 都跑</p><p>本地 H3-Base 和论文用的 FAL 托管版不完全一样（托管版可能有不同版本或额外处理）。如果只用本地跑新 prompt，再拿去和论文里的旧分数比，你分不清分数变化来自 prompt，还是来自换了跑法。同一套环境里新旧都跑一遍，差别才只来自 prompt。</p>
+</aside>
+</section>
+<section class="card" id="s7" data-section="s7" aria-labelledby="s7-h"><h2 id="s7-h"><span class="badge" aria-hidden="true">7</span><span class="h-num">7. </span><span class="h-t">最大的不确定因素</span></h2>
+<ol class="steps">
+<li><strong>模型是谁</strong>。我把 “M3” 当成笔误，按 H3 算。如果你本意是用 M3 改写 prompt 或当评委：改写 142 条 prompt 走 API 只要几美分到几美元；自己部署 M3 要约 444 GB 权重，不值得。</li>
+<li><strong>API 还是本地</strong>。本地只能跑 H3-Base（768p）。官方的 Context-IR 和 2K 重生成只在 API 上有。论文输出是 1344×768，和 768p 本地一致，但不保证完全相同。</li>
+<li><strong>每道题实际要多久</strong>。带 2.5 秒参考视频的 Ref2VA 在 B300 上没有公开数字。估计 25–70 秒，差约 3 倍，这是总时间最大的变量。</li>
+<li><strong>许可证地域</strong>。H3 社区许可证不覆盖美国、欧盟、英国、韩国，这些地方要另外授权。National Compute 机房在哪里，我不知道。如果在美国，本地部署有许可证问题，只能走 API。</li>
+<li><strong>评测脚本没公开</strong>。论文的推理脚本（输入补帧、输出裁剪、ffprobe 检查）没有发布，要自己重写。</li>
+<li><strong>考题 prompt 和脚本 prompt 是否一样</strong>。196/104 的划分基于这个假设，没有逐条核对考题文件。</li>
+<li><strong>人工打分</strong>。如果要重做 Elo，人工费用和时间可能比 GPU 贵，本文没算。</li>
+</ol>
+</section>
+<section class="card" id="sources" data-section="sources" aria-labelledby="sources-h"><h2 id="sources-h"><span class="h-t">来源</span></h2>
+<ul>
+<li>WROP 论文（arXiv 2609.28654）：表 1（MiniMax H3，FAL API，1344×768/24/124）、第 3 节（60 帧输入）、第 4.3 节（推理协议）、附录 B（trn2.48xlarge 训练速度）。本地文件 <code>gen-splits/paper.txt</code>。</li>
+<li>MiniMax H3 自部署文档（含 8×B300 实测表、vLLM-Omni 批处理说明）：https://platform.minimax.io/docs/guides/local-deploy-h3</li>
+<li>MiniMax H3 模型卡：https://huggingface.co/MiniMaxAI/MiniMax-H3</li>
+<li>Kingy.ai H3 评测（权重大小、官方 API 价格）：https://kingy.ai/news/minimax-h3-benchmarks-specs-hardware-review/</li>
+<li>fal 上的 H3 价格：https://fal.ai/models/minimax/h3/text-to-video/llms.txt 、https://fal.ai/learn/tools/minimax-h3-explained</li>
+<li>H3 价格汇总：https://aivideoapis.com/models/hailuo-3/</li>
+<li>MiniMax M3：https://www.minimax.io/blog/minimax-m3 、https://huggingface.co/MiniMaxAI/MiniMax-M3 、https://platform.minimax.io/docs/guides/local-deploy-m3</li>
+<li>B300 规格（BF16 稠密 2.25 PFLOPS/卡）：https://flopper.io/gpu/nvidia-b300-sxm-288gb/spec-sheet.pdf</li>
+<li>8×B300 价格：Second Mate 转来的 National Compute 公共研究 .edu 价（$4/卡·小时），2026-10-08。</li>
+<li>196/104 划分：本地 <code>prompt-ambiguity-197.jsonl</code> + <code>generalization-splits.csv</code>。</li>
+</ul>
+</section>
+    </article>
+
+    <nav class="more" aria-label="其他页面">
+      <ul><li><a class="more-card" href="/wrop-improvement-directions"><span class="more-k">另一篇</span><span class="more-t">WROP 后续改进方向</span></a></li><li><a class="more-card" href="/wrop-metrics-zh"><span class="more-k">另一篇</span><span class="more-t">WROP 评测指标：是什么、怎么算、哪里弱</span></a></li><li><a class="more-card" href="/"><span class="more-k">首页</span><span class="more-t">全部页面</span></a></li></ul>
+    </nav>
+
+    <section class="comments" id="comments" aria-labelledby="comments-h">
+      <h2 id="comments-h">评论 <span class="count" id="list-count">0</span></h2>
+      <p class="hint">选中正文里的文字。点「评论」按钮。评论会贴在那段文字上。</p>
+      <p class="hint">无需登录。任何人都可以回复、编辑、删除、解决任何评论。昵称可不填，会记在本浏览器里。</p>
+      <button type="button" class="btn ghost" id="page-comment">评论整篇</button>
+      <p class="empty" id="list-empty">还没有评论。</p>
+      <ol class="thread-list" id="thread-list"></ol>
+    </section>
+  </main>
+</div>
+
+<footer class="foot">
+  <p>来源：<code>content/wrop-rerun-cost.md</code>。更新于 2026-10-08。</p>
+  <p>托管于 Cloudflare。评论公开，任何人可改。</p>
+</footer>
+
+<button type="button" class="sel-btn" id="sel-btn" hidden>评论</button>
+
+<div class="scrim" id="scrim" hidden></div>
+<aside class="panel" id="panel" role="dialog" aria-modal="true" aria-labelledby="panel-h" hidden>
+  <div class="panel-head">
+    <h2 id="panel-h">评论</h2>
+    <button type="button" class="icon-btn" id="panel-close" aria-label="关闭">×</button>
+  </div>
+  <div class="panel-body">
+    <blockquote class="panel-quote" id="panel-quote" hidden></blockquote>
+    <ol class="thread" id="panel-thread"></ol>
+    <form class="composer" id="composer" novalidate>
+      <label class="field" id="f-nick-field">
+        <span>昵称（可不填）</span>
+        <input type="text" id="f-nick" maxlength="40" autocomplete="nickname" placeholder="匿名">
+      </label>
+      <label class="field">
+        <span id="f-body-label">评论</span>
+        <textarea id="f-body" maxlength="2000" rows="4" required placeholder="写下你的看法。"></textarea>
+      </label>
+      <div class="form-foot">
+        <span class="counter" id="f-count">0 / 2000</span>
+        <button type="submit" class="btn" id="f-submit">发布</button>
+      </div>
+      <p class="form-msg" id="f-msg" role="status" aria-live="polite"></p>
+    </form>
+  </div>
+</aside>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>
