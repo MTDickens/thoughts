@@ -467,18 +467,7 @@
     <section class="comments" id="comments" aria-labelledby="comments-h">
       <h2 id="comments-h">评论 <span class="count" id="list-count">0</span></h2>
       <p class="hint">选中正文里的文字。点「评论」按钮。评论会贴在那段文字上。</p>
-      <p class="hint">无需登录。昵称可不填。</p>
-      <div class="auth" id="auth-box">
-        <span class="auth-state" id="auth-state" hidden></span>
-        <button type="button" class="link-btn" id="auth-login">Max 登录</button>
-        <button type="button" class="link-btn" id="auth-logout" hidden>退出</button>
-        <form class="auth-form" id="auth-form" hidden>
-          <input type="password" id="auth-token" autocomplete="current-password" placeholder="粘贴令牌" aria-label="令牌" required>
-          <button type="submit" class="btn">登录</button>
-          <button type="button" class="link-btn" id="auth-cancel">取消</button>
-        </form>
-        <p class="form-msg" id="auth-msg" role="status" aria-live="polite"></p>
-      </div>
+      <p class="hint">无需登录。任何人都可以回复、编辑、删除、解决任何评论。昵称可不填，会记在本浏览器里。</p>
       <button type="button" class="btn ghost" id="page-comment">评论整篇</button>
       <p class="empty" id="list-empty">还没有评论。</p>
       <ol class="thread-list" id="thread-list"></ol>
@@ -488,7 +477,7 @@
 
 <footer class="foot">
   <p>来源：<code>content/wrop-metrics-zh.md</code>。更新于 2026-10-08。</p>
-  <p>托管于 Cloudflare。评论匿名存储。</p>
+  <p>托管于 Cloudflare。评论公开，任何人可改。</p>
 </footer>
 
 <button type="button" class="sel-btn" id="sel-btn" hidden>评论</button>
@@ -503,7 +492,6 @@
     <blockquote class="panel-quote" id="panel-quote" hidden></blockquote>
     <ol class="thread" id="panel-thread"></ol>
     <form class="composer" id="composer" novalidate>
-      <p class="as-who" id="f-as" hidden></p>
       <label class="field" id="f-nick-field">
         <span>昵称（可不填）</span>
         <input type="text" id="f-nick" maxlength="40" autocomplete="nickname" placeholder="匿名">
@@ -512,7 +500,6 @@
         <span id="f-body-label">评论</span>
         <textarea id="f-body" maxlength="2000" rows="4" required placeholder="写下你的看法。"></textarea>
       </label>
-      <div class="ts" id="ts-box"></div>
       <div class="form-foot">
         <span class="counter" id="f-count">0 / 2000</span>
         <button type="submit" class="btn" id="f-submit">发布</button>

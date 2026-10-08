@@ -75,18 +75,20 @@ Never commit secrets (`/home/box/.config/thoughts/secrets.env`).
 
 `tools/examples/components.md` uses every block (built by the self-test only, not published).
 
-## 6. 评论：agent 与 Max 平级 (comments: agents and Max are peers)
+## 6. 评论：所有人平等 (comments: open to everyone)
 
-角色 roles: **owner** = Max（浏览器，徽章 `Max`）· **agent** = 你（API/CLI，徽章 `agent` + 名字）· **anon** = 匿名访客（只能发，需要 Turnstile，徽章 `匿名`）。
-owner 和 agent 都能发、回复、编辑、删除、解决/重开**任何**评论。Owner and agent can create, reply, edit, delete, resolve/reopen any comment.
+任何访客（不登录）都能发、回复、编辑、删除（连回复）、解决/重开**任何**评论。没有人机验证，没有 Max 登录。Max 想署名就在昵称里填 `Max`（浏览器会记住）。
+Anyone (no login, no captcha) can create, reply, edit, delete (with replies) and resolve/reopen ANY comment. Max signs by typing `Max` as nickname.
 
-CLI: `tools/comments.py`（只用标准库 stdlib only）。令牌 token: `$THOUGHTS_AGENT_TOKEN`，否则读 `/home/box/.config/thoughts/secrets.env` 的 `AGENT_TOKEN`。**不要打印、提交或贴出令牌 never print/commit/paste the token.**
+显示 display: 访客 = 昵称或 `匿名`；agent = 名字 + `agent` 徽章；编辑/解决会显示是谁（昵称）做的 (`已编辑（X）`, `已解决（X）`)。
+
+CLI: `tools/comments.py`（只用标准库 stdlib only）。用 agent 令牌 `$THOUGHTS_AGENT_TOKEN`，否则读 `/home/box/.config/thoughts/secrets.env` 的 `AGENT_TOKEN` → 你的评论带 `agent` 徽章，限速更宽。**不要打印、提交或贴出令牌 never print/commit/paste the token.** `--role visitor` = 不带令牌，和网站访客一样（测试用）。
 
 ```bash
 C="python3 tools/comments.py --name <your-agent-name>"
 $C open                                   # 所有未解决的线程 all unresolved threads
 $C open --page wrop-metrics-zh            # 一页 one page
-$C list --status all --since 2d --author-role owner   # since: 30m / 2h / 3d / 2026-10-08 / ms epoch
+$C list --status all --since 2d --author-role visitor   # since: 30m / 2h / 3d / 2026-10-08 / ms epoch
 $C show <id>                              # 线程 + 回复 thread + replies
 $C add --page wrop-metrics-zh --anchor s3 --quote "页面上原样的一句" "问题…"   # 贴在文字上 text anchor
 $C add --page wrop-metrics-zh --anchor s5-fig-1 --element "这张图…"            # 贴在元素上 element anchor
@@ -101,22 +103,21 @@ $C --json open                            # 机器可读 machine-readable
 
 **工作流 workflow**
 
-1. 开工前 before editing: `$C open` — 看 Max 的未解决评论。Read open threads first.
-2. Max 评论 → 你改 `content/*.md` → build → push → 确认上线 → `$C delete <id>`（已处理完、无需留档）或 `$C reply <id> "已改：…"` + `$C resolve <id>`。改不了 can't fix: `$C reply <id> "没改，因为…"`，**不要** resolve，留给 Max。
+1. 开工前 before editing: `$C open` — 看未解决的评论（Max 的评论昵称一般是 `Max`，但昵称谁都能填，看内容判断）。
+2. 有人提意见 → 你改 `content/*.md` → build → push → 确认上线 → `$C delete <id>`（处理完、无需留档）或 `$C reply <id> "已改：…"` + `$C resolve <id>`。改不了 can't fix: `$C reply <id> "没改，因为…"`，**不要** resolve。
 3. 你要问 Max: `$C add … "问题"`（贴在相关文字上）。之后 `$C show <id>` 看回复；按回复改完 → push → `$C delete <id>`。
 4. 回复会自动重开已解决的线程。A reply reopens a resolved thread.
-5. 不要删匿名访客的评论，除非 Max 要求。Don't delete anonymous comments unless Max asks.
-6. 限速 rate limit: 每个角色 10 分钟最多 60 条新评论。60 new comments / 10 min per role.
+5. 只删你自己发的、或已处理完的评论；别人的评论除非 Max 要求不要删。Only delete your own or handled comments.
+6. 限速 rate limits: agent 令牌 10 分钟 120 次写操作。访客每 IP：10 分钟 5 条新评论、1 天 40 条、10 分钟 30 次写操作；全站访客：每小时 200 条新评论、300 次写操作。超了返回 429。
 
-API (all JSON; token only in `Authorization: Bearer …`; no CORS — same-origin pages or server-side callers only):
+API (JSON; writes need `content-type: application/json`; `Origin` must be this site or absent; no CORS):
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| GET | `/api/me` | `{role, name}`；无效令牌 401 |
-| GET | `/api/comments?page=&status=open\|resolved\|all&since=&author_role=&limit=` | 匿名必须带 `page` |
+| GET | `/api/me` | `{role: "visitor"}`，带有效 agent 令牌是 `{role: "agent"}`；错令牌 401 |
+| GET | `/api/comments?page=&status=open\|resolved\|all&since=&author_role=visitor\|agent&limit=` | `page` 可省（全站） |
 | GET | `/api/comments/:id` | 线程 + 回复 |
-| POST | `/api/comments` | `{page, body, anchor_type:"text", anchor_id, quote, prefix, suffix}` 或 `{page, body, parent_id}`；agent 可带 `author_name` |
-| PATCH | `/api/comments/:id` | `{body}` 和/或 `{resolved: true\|false}`（只对线程根） |
+| POST | `/api/comments` | `{page, body, nickname, anchor_type:"text", anchor_id, quote, prefix, suffix}` 或 `{page, body, nickname, parent_id}`；agent 用 `author_name` |
+| PATCH | `/api/comments/:id` | `{body}` 和/或 `{resolved: true\|false}`（只对线程根），可带 `nickname` |
 | DELETE | `/api/comments/:id` | 连同回复 |
-| POST | `/api/comments/:id/resolve` · `/reopen` | |
-
+| POST | `/api/comments/:id/resolve` · `/reopen` | 可带 `{nickname}` |

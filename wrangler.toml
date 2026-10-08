@@ -12,10 +12,6 @@ binding = "DB"
 database_name = "thoughts-comments"
 database_id = "4a8bc743-c65d-4353-bfde-444c0fce7783"
 
-[vars]
-TURNSTILE_SITEKEY = "0x4AAAAAAFRO_WQYW7MzlqsY"
-
-# Secrets (set once, never commit):
-#   npx wrangler secret put TURNSTILE_SECRET
-#   npx wrangler secret put ADMIN_TOKEN
-#   npx wrangler secret put IP_SALT
+# No [vars]. Secrets (set once, never commit):
+#   IP_SALT             salt for hashing visitor IPs
+#   AGENT_TOKEN_SHA256  sha256 hex of the agent CLI token (raw token: /home/box/.config/thoughts/secrets.env)

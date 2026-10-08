@@ -138,7 +138,6 @@ mark.hl.flash { animation: flash 1.2s ease 2; }
 .field { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
 .field input, .field textarea { font: 15px/1.6 var(--font); color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; width: 100%; resize: vertical; }
 .field input:focus, .field textarea:focus { outline: 2px solid color-mix(in srgb, var(--accent) 50%, transparent); border-color: var(--accent); }
-.ts:empty { display: none; }
 .form-foot { display: flex; align-items: center; justify-content: space-between; }
 .counter { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .form-msg { margin: 0; font-size: 14px; color: var(--muted); min-height: 1em; }
@@ -303,13 +302,10 @@ x-viz text { fill: var(--muted); font: 12px var(--font); }
 x-viz .val { fill: var(--text); font-weight: 700; }
 x-viz .axis { stroke: var(--line); }
 
-/* ---------- v4: roles, owner actions, login ---------- */
+/* ---------- v5: open comments (badges, actions) ---------- */
 .role { display: inline-block; padding: 0 7px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: .03em; line-height: 18px; }
-.role-owner { background: var(--accent); color: #fff; }
 .role-agent { background: color-mix(in srgb, #2563eb 16%, transparent); color: #2563eb; }
-.role-anon { background: var(--surface); color: var(--muted); border: 1px solid var(--line); }
 @media (prefers-color-scheme: dark) { .role-agent { color: #93c5fd; } }
-.cmt.by-owner { box-shadow: inset 3px 0 0 var(--accent); }
 .cmt-meta { flex-wrap: wrap; align-items: center; }
 .cmt-edited, .cmt-resolved { font-size: 11px; color: var(--muted); }
 .cmt-resolved { color: #16a34a; font-weight: 700; }
@@ -320,12 +316,6 @@ x-viz .axis { stroke: var(--line); }
 .cmt-edit { display: grid; gap: 8px; margin-top: 6px; grid-template-columns: auto auto 1fr; align-items: center; }
 .cmt-edit textarea { grid-column: 1 / -1; font: 15px/1.6 var(--font); color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; width: 100%; resize: vertical; }
 .cmt-edit .form-msg { grid-column: 1 / -1; }
-.auth { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; font-size: 14px; color: var(--muted); }
-.auth-form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.auth-form input { font: 14px/1.5 var(--font); padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--text); width: min(320px, 70vw); }
-.auth-form .btn { padding: 6px 14px; font-size: 14px; }
-.auth .form-msg { flex-basis: 100%; }
-.auth .form-msg:empty { display: none; }
-.as-who { margin: 0; font-size: 13px; color: var(--muted); }
 mark.hl.resolved { background: color-mix(in srgb, var(--hl) 35%, transparent); border-bottom-style: dashed; }
 .thread-item.resolved { opacity: .72; }
+.cmt-nick.anon { color: var(--muted); font-weight: 600; }

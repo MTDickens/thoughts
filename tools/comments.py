@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """thoughts comments CLI for agents (Python stdlib only).
 
-Token: $THOUGHTS_AGENT_TOKEN, else AGENT_TOKEN in /home/box/.config/thoughts/secrets.env
-(--role owner uses $THOUGHTS_OWNER_TOKEN / OWNER_TOKEN; only for tests and for Max).
+Token: $THOUGHTS_AGENT_TOKEN, else AGENT_TOKEN in /home/box/.config/thoughts/secrets.env.
+With the token your comments get the `agent` badge and the higher agent rate limit.
+--role visitor sends no token (same rights as any website visitor; for tests).
 Base URL: $THOUGHTS_URL (default https://thoughts.ycjian.com).
 
   comments.py list [--page P] [--status open|resolved|all] [--since MS|2026-10-08|2h|3d] [--author-role R]
@@ -13,7 +14,7 @@ Base URL: $THOUGHTS_URL (default https://thoughts.ycjian.com).
   comments.py edit ID TEXT
   comments.py delete ID                              # deletes replies too
   comments.py resolve ID | reopen ID
-Global: --json (raw JSON), --name NAME (agent display name), --role agent|owner, --url URL.
+Global: --json (raw JSON), --name NAME (display name; shown on comments, edits, resolves), --role agent|visitor, --url URL.
 """
 import argparse, json, os, pathlib, sys, time, urllib.error, urllib.parse, urllib.request
 
@@ -21,6 +22,8 @@ SECRETS = pathlib.Path("/home/box/.config/thoughts/secrets.env")
 
 
 def token_for(role):
+    if role == "visitor":
+        return None
     env = os.environ.get(f"THOUGHTS_{role.upper()}_TOKEN")
     if env:
         return env.strip()
@@ -44,7 +47,7 @@ class Api:
                 url += "?" + urllib.parse.urlencode(q)
         data = json.dumps(body).encode() if body is not None else None
         req = urllib.request.Request(url, data=data, method=method, headers={
-            "authorization": f"Bearer {self.token}", "content-type": "application/json",
+            **({"authorization": f"Bearer {self.token}"} if self.token else {}), "content-type": "application/json",
             "user-agent": "thoughts-comments-cli/1"})
         try:
             with urllib.request.urlopen(req, timeout=30) as r:
@@ -64,16 +67,16 @@ def fmt_time(ms):
 
 
 def who(c):
-    if c["author_role"] == "owner":
-        return "Max"
     if c["author_role"] == "agent":
         return f"{c.get('author_name') or 'agent'} [agent]"
-    return f"{c.get('nickname') or '匿名'} [匿名]"
+    if c["author_role"] == "owner":  # rows from the old owner login
+        return "Max"
+    return c.get("nickname") or "匿名"
 
 
 def print_comment(c, indent=""):
     flags = []
-    if c.get("edited_at"): flags.append("edited")
+    if c.get("edited_at"): flags.append(f"edited by {c.get('edited_by') or '?'}")
     if c.get("resolved_at") and not c.get("parent_id"): flags.append(f"resolved by {c.get('resolved_by') or '?'}")
     print(f"{indent}{c['id']}  {c['page']}#{c['anchor_id']}  {who(c)}  {fmt_time(c['created_at'])}"
           + (f"  ({', '.join(flags)})" if flags else ""))
@@ -122,12 +125,12 @@ def parse_since(v):
 def main():
     ap = argparse.ArgumentParser(description="thoughts comments CLI (agents)", formatter_class=argparse.RawDescriptionHelpFormatter, epilog=__doc__)
     ap.add_argument("--json", action="store_true", help="print raw JSON")
-    ap.add_argument("--name", default=os.environ.get("THOUGHTS_AGENT_NAME", ""), help="agent display name (create/reply)")
-    ap.add_argument("--role", choices=["agent", "owner"], default="agent")
+    ap.add_argument("--name", default=os.environ.get("THOUGHTS_AGENT_NAME", ""), help="display name (create/reply/edit/resolve)")
+    ap.add_argument("--role", choices=["agent", "visitor"], default="agent")
     ap.add_argument("--url", default=os.environ.get("THOUGHTS_URL", "https://thoughts.ycjian.com"))
     sub = ap.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("list"); s.add_argument("--page"); s.add_argument("--status", default="all", choices=["open", "resolved", "all"])
-    s.add_argument("--since", type=parse_since); s.add_argument("--author-role", choices=["owner", "agent", "anon"])
+    s.add_argument("--since", type=parse_since); s.add_argument("--author-role", choices=["visitor", "agent", "anon", "owner"])
     s = sub.add_parser("open"); s.add_argument("--page")
     s = sub.add_parser("show"); s.add_argument("id")
     s = sub.add_parser("add"); s.add_argument("--page", required=True); s.add_argument("--anchor", required=True, help="section id (s3) or element id")
@@ -156,18 +159,18 @@ def main():
     if a.cmd == "add":
         if not a.element and not a.quote:
             sys.exit("add: give --quote \"exact text from the section\" or use --element")
-        body = {"page": a.page, "anchor_id": a.anchor, "body": a.text, "author_name": a.name,
+        body = {"page": a.page, "anchor_id": a.anchor, "body": a.text, "author_name": a.name, "nickname": a.name,
                 "anchor_type": "element" if a.element else "text", "quote": a.quote, "prefix": a.prefix, "suffix": a.suffix}
         out = api.call("POST", "/api/comments", body)
     elif a.cmd == "reply":
         parent = api.call("GET", f"/api/comments/{a.id}")["comment"]
-        out = api.call("POST", "/api/comments", {"page": parent["page"], "parent_id": a.id, "body": a.text, "author_name": a.name})
+        out = api.call("POST", "/api/comments", {"page": parent["page"], "parent_id": a.id, "body": a.text, "author_name": a.name, "nickname": a.name})
     elif a.cmd == "edit":
-        out = api.call("PATCH", f"/api/comments/{a.id}", {"body": a.text})
+        out = api.call("PATCH", f"/api/comments/{a.id}", {"body": a.text, "author_name": a.name, "nickname": a.name})
     elif a.cmd == "delete":
         out = api.call("DELETE", f"/api/comments/{a.id}")
     else:
-        out = api.call("POST", f"/api/comments/{a.id}/{a.cmd}")
+        out = api.call("POST", f"/api/comments/{a.id}/{a.cmd}", {"author_name": a.name, "nickname": a.name})
     if a.json: print(json.dumps(out, ensure_ascii=False, indent=2))
     elif "comment" in out: print_comment(out["comment"])
     else: print(f"deleted {out.get('deleted')} comment(s) (id {out.get('id')})")

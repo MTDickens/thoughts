@@ -32,41 +32,29 @@
 ## 评论
 
 - 读者选中文字。点「评论」。评论贴在那段文字上。
-- 三种身份，徽章不同：
-  - **Max**（owner）：浏览器里登录。可以编辑、删除、解决/重开**任何**评论。
-  - **agent**：用 API 或 `tools/comments.py`。权限和 Max 一样（平级）。徽章显示 agent 名字。
-  - **匿名**：不登录。只能发评论和回复。昵称可不填。
-- 匿名防刷：Cloudflare Turnstile（免费）+ 每 IP 限速（10 分钟 5 条，1 天 40 条）+ 全站匿名评论每小时 200 条。
-- 令牌请求（owner/agent）不走 Turnstile。限速：每个角色 10 分钟 60 条。
-- 回复会自动重开已解决的线程。
-- 存储：D1 `thoughts-comments`，表 `comments`。每条评论带 `page`（页面 slug），各页评论互不混。
-  新列：`author_role`（owner/agent/anon）、`author_name`、`edited_at`、`resolved_at`、`resolved_by`。
+- **完全开放**（Max 2026-10-08 的选择，接受被乱改的风险）：任何人不登录就能发、回复、编辑、删除（连回复）、解决/重开**任何**评论。没有人机验证，没有登录。
+- 昵称可不填（显示「匿名」），存在本浏览器 `localStorage`（`thoughts.nick`）。Max 想署名就填 `Max`。编辑和解决会记录并显示操作人的昵称。
+- agent 用 `tools/comments.py` 带令牌发评论：徽章 `agent` + 名字，限速更宽。见 **[AUTHORING-SPEC.md 第 6 节](AUTHORING-SPEC.md)**（命令、工作流、接口表）。
+- 防滥用：
+  - 写操作只收 JSON，且 `Origin` 必须是本站或为空（挡住跨站表单/脚本）。不开 CORS。
+  - 限速（表 `write_log`）：每 IP 10 分钟 5 条新评论、1 天 40 条、10 分钟 30 次写操作；全站访客每小时 200 条新评论、300 次写操作；agent 令牌 10 分钟 120 次写操作。超了返回 429。
+  - 长度：评论 2000 字，昵称 40 字，引文 1000 字。
+  - IP 只存加盐哈希（`IP_SALT`）。`write_log` 保留 30 天，可查谁（哪个 IP 哈希）改过/删过什么。
+- 存储：D1 `thoughts-comments`。表 `comments`（每条带 `page`，各页互不混）和 `write_log`。
+  - `author_role`：`visitor`（访客）或 `agent`。旧数据里的 `anon` 当访客，`owner` 显示为 Max。
 - 锚点类型 `anchor_type`：`text`（文字）、`element`（图片、表格、可视化组件，用 `data-anchor-id`）、`media_time`（视频时间点，用 `media_t` 秒）。
 
-### Max 登录
+### 被乱改了怎么办
 
-1. 打开任意页面，滚到「评论」。点 **Max 登录**。
-2. 粘贴 `OWNER_TOKEN`（在盒子上的 `/home/box/.config/thoughts/secrets.env`）。点「登录」。
-3. 令牌存在本浏览器的 `localStorage`，只放在 `Authorization` 请求头里（不用 cookie）。之后每条评论下有「编辑 / 删除 / 解决」。
-4. 点「退出」清掉令牌。令牌失效（401）时自动退出。
-
-### agent：命令行
-
-`python3 tools/comments.py open`、`show`、`add`、`reply`、`edit`、`delete`、`resolve`、`reopen`、`list`，加 `--json` 出 JSON。
-令牌：`$THOUGHTS_AGENT_TOKEN`，否则读 `secrets.env` 里的 `AGENT_TOKEN`。
-用法和工作流见 **[AUTHORING-SPEC.md 第 6 节](AUTHORING-SPEC.md)**，接口表也在那里。
-
-### 安全
-
-- 令牌只认 `Authorization: Bearer …`。不用 cookie，所以没有 CSRF 面。
-- 写操作（POST/PATCH/DELETE）检查 `Origin`，只收同源或无 `Origin`（服务器端调用）。不开 CORS。
-- 错误令牌返回 401。匿名请求不能编辑、删除、解决（401）。
+- 查日志（Cloudflare 控制台 → D1 → `thoughts-comments` → Console）：
+  `SELECT datetime(at/1000,'unixepoch') t, ip_hash, role, action, comment_id FROM write_log ORDER BY at DESC LIMIT 50;`
+- 删掉的评论无法恢复（没有备份）。需要的话用 D1 Time Travel 回到某个时间点（`npx wrangler d1 time-travel restore thoughts-comments --timestamp=…`，免费版保留 7 天；整库回滚，之后的新评论也会丢。见 https://developers.cloudflare.com/d1/reference/time-travel/）。
+- 想收紧：改 `src/worker.js` 里的 `RATE`，或恢复 Turnstile（见 git 历史 `7247853`）。
 
 ### 数据库迁移
 
 - 新库：`schema.sql`。
-- 旧库（v1）：`migrations/0002_roles_edit_resolve.sql`。只加列、加索引，不改旧数据。旧评论都算匿名。
-  `npx wrangler d1 execute thoughts-comments --remote --file=migrations/0002_roles_edit_resolve.sql`（只跑一次；生产库已于 2026-10-08 跑过）。
+- 旧库按顺序：`migrations/0002_roles_edit_resolve.sql`、`migrations/0003_open_comments.sql`。都只加表/列/索引。生产库已于 2026-10-08 跑过。
 
 ## 本地开发
 
@@ -74,7 +62,7 @@
 npm install
 python3 tools/build.py
 npx wrangler d1 execute thoughts-comments --local --file=schema.sql
-# 本地令牌（不提交）：.dev.vars 里写 OWNER_TOKEN=… 和 AGENT_TOKEN=…
+# 本地 agent 令牌（不提交）：.dev.vars 里写 AGENT_TOKEN=…（或 AGENT_TOKEN_SHA256=…）
 npx wrangler dev
 THOUGHTS_URL=http://127.0.0.1:8787 THOUGHTS_AGENT_TOKEN=… python3 tools/comments.py open
 ```
@@ -100,7 +88,7 @@ python3 tools/build.py
 npx wrangler deploy
 ```
 
-密钥只在 Cloudflare 上，不进仓库：`TURNSTILE_SECRET`、`IP_SALT`、`OWNER_TOKEN_SHA256`、`AGENT_TOKEN_SHA256`（`ADMIN_TOKEN` 是 v1 的，已不再使用）。
-Cloudflare 上只存令牌的 SHA-256（小写十六进制）。原始令牌只在盒子上的 `/home/box/.config/thoughts/secrets.env`（权限 600，键 `OWNER_TOKEN`、`AGENT_TOKEN`）。
-换令牌：生成新随机值 → 写进 secrets.env → 把它的 SHA-256 设为对应密钥（`wrangler secret put OWNER_TOKEN_SHA256` 或 API）。旧令牌立即失效。
+密钥只在 Cloudflare 上，不进仓库：`IP_SALT`、`AGENT_TOKEN_SHA256`（agent 令牌的 SHA-256，小写十六进制）。
+原始 agent 令牌只在盒子上的 `/home/box/.config/thoughts/secrets.env`（权限 600，键 `AGENT_TOKEN`）。
+换令牌：生成新随机值 → 写进 secrets.env → 把它的 SHA-256 设为 `AGENT_TOKEN_SHA256`。旧令牌立即失效。
 `wrangler deploy` 会保留已有密钥。

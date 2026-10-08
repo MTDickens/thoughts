@@ -1,14 +1,22 @@
-// thoughts.ycjian.com — static pages + anonymous comments API (Cloudflare Worker + D1 + Turnstile).
-// Bindings: DB (D1), TURNSTILE_SITEKEY (var), TURNSTILE_SECRET / IP_SALT / OWNER_TOKEN_SHA256 / AGENT_TOKEN_SHA256 (secrets; raw OWNER_TOKEN / AGENT_TOKEN also accepted). ADMIN_TOKEN (v1) is no longer read.
+// thoughts.ycjian.com — static pages + open comments API (Cloudflare Worker + D1).
+// Anyone may create, reply, edit, delete, resolve and reopen any comment (Max's choice, 2026-10-08).
+// Abuse control: same-origin JSON writes, per-IP + site-wide rate limits (table write_log), length limits, hashed IPs.
+// Bindings: DB (D1); secrets IP_SALT, AGENT_TOKEN_SHA256 (or raw AGENT_TOKEN) for the agent CLI.
 // Pages are embedded from public/* via src/site.gen.js (run `python3 tools/build.py`).
 import SITE from './site.gen.js';
 
 const LIMITS = { body: 2000, nickname: 40, quote: 1000, ctx: 64, payload: 8192 };
-const RATE = { perIp10m: 5, perIpDay: 40, global1h: 200, tokenPer10m: 60 };
-const ROLES = new Set(['owner', 'agent', 'anon']);
+// create = new comments/replies; write = any create/edit/delete/resolve/reopen.
+const RATE = {
+  createPerIp10m: 5, createPerIpDay: 40, createGlobal1h: 200,   // visitors, new comments
+  writePerIp10m: 30, writeGlobal1h: 300,                        // visitors, all writes
+  agentWrite10m: 120,                                            // agent token, all writes
+};
+const LOG_KEEP_MS = 30 * 86_400_000; // write_log doubles as a 30-day audit trail
+const ROLES = new Set(['visitor', 'agent', 'anon', 'owner']); // anon/owner = rows from before 2026-10-08
 const ID_RE = /^[A-Za-z0-9_-]{1,80}$/;
 const TYPES = new Set(['text', 'element', 'media_time']);
-const PUBLIC_COLS = 'id, page, anchor_type, anchor_id, quote, prefix, suffix, media_t, parent_id, nickname, body, created_at, author_role, author_name, edited_at, resolved_at, resolved_by';
+const PUBLIC_COLS = 'id, page, anchor_type, anchor_id, quote, prefix, suffix, media_t, parent_id, nickname, body, created_at, author_role, author_name, edited_at, edited_by, resolved_at, resolved_by';
 
 const SEC_HEADERS = {
   'x-content-type-options': 'nosniff',
@@ -18,7 +26,7 @@ const PAGE_HEADERS = {
   ...SEC_HEADERS,
   'x-frame-options': 'DENY',
   'permissions-policy': 'camera=(), microphone=(), geolocation=()',
-  'content-security-policy': "default-src 'self'; script-src 'self' https://challenges.cloudflare.com https://static.cloudflareinsights.com; frame-src https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://cloudflareinsights.com; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+  'content-security-policy': "default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://cloudflareinsights.com; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
 };
 
 // Decode base64 entries (images) once, on first use.
@@ -91,35 +99,58 @@ function safeEqual(a, b) {
   return r === 0;
 }
 
-async function verifyTurnstile(env, token, ip) {
-  if (!env.TURNSTILE_SECRET) return true; // Turnstile not configured -> rely on rate limits
-  if (!token || typeof token !== 'string' || token.length > 2048) return false;
-  const form = new FormData();
-  form.append('secret', env.TURNSTILE_SECRET);
-  form.append('response', token);
-  if (ip) form.append('remoteip', ip);
-  const r = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', { method: 'POST', body: form });
-  const out = await r.json().catch(() => ({}));
-  return out.success === true;
-}
-
-/* ---------- auth: owner (Max, browser) and agent (CLI) bearer tokens ---------- */
-// Tokens travel only in the Authorization header (never cookies), so cross-site requests cannot carry them.
-// Cloudflare holds only SHA-256 hashes of the tokens (OWNER_TOKEN_SHA256 / AGENT_TOKEN_SHA256, lowercase hex);
-// raw OWNER_TOKEN / AGENT_TOKEN secrets are also accepted.
+/* ---------- agent token (CLI). Visitors need no auth. ---------- */
+// Token only in the Authorization header. Cloudflare holds its SHA-256 (AGENT_TOKEN_SHA256, hex); raw AGENT_TOKEN also accepted.
 async function authOf(request, env) {
   const h = request.headers.get('authorization');
-  if (!h) return { role: null };
+  if (!h) return { role: 'visitor' };
   const m = /^Bearer\s+(\S{20,200})$/.exec(h);
   if (m) {
-    const t = m[1], d = await sha256Hex(t);
-    const is = (raw, hash) => (raw && safeEqual(t, raw)) || (hash && safeEqual(d, String(hash).trim().toLowerCase()));
-    if (is(env.OWNER_TOKEN, env.OWNER_TOKEN_SHA256)) return { role: 'owner', name: 'Max' };
-    if (is(env.AGENT_TOKEN, env.AGENT_TOKEN_SHA256)) return { role: 'agent', name: 'agent' };
+    const tok = m[1], d = await sha256Hex(tok);
+    if ((env.AGENT_TOKEN && safeEqual(tok, env.AGENT_TOKEN)) || (env.AGENT_TOKEN_SHA256 && safeEqual(d, String(env.AGENT_TOKEN_SHA256).trim().toLowerCase()))) {
+      return { role: 'agent' };
+    }
   }
   return { error: true };
 }
-const needAuth = () => err(401, '需要有效的令牌（Authorization: Bearer …）。');
+
+async function ipHashOf(request, env) {
+  const ip = request.headers.get('cf-connecting-ip') || '';
+  return (await sha256Hex(`${env.IP_SALT || 'thoughts'}|${ip}`)).slice(0, 32);
+}
+
+// Who is acting, for display (author_name / edited_by / resolved_by).
+function actorName(who, p) {
+  const n = clean(p && (who.role === 'agent' ? p.author_name : p.nickname), LIMITS.nickname);
+  if (n === null) return null;
+  return n.trim() || (who.role === 'agent' ? 'agent' : '');
+}
+
+// Rate limit any write. Returns an error Response, or null and the statement that logs this write.
+async function rateCheck(env, who, ipHash, action, now) {
+  const isCreate = action === 'create';
+  if (who.role === 'agent') {
+    const r = await env.DB.prepare("SELECT COUNT(*) AS n FROM write_log WHERE role = 'agent' AND at > ?").bind(now - 600_000).first();
+    if (r.n >= RATE.agentWrite10m) return { error: err(429, '操作太频繁。请稍后再试。') };
+  } else {
+    const [w10, wg, c10, cday, cg] = (await env.DB.batch([
+      env.DB.prepare('SELECT COUNT(*) AS n FROM write_log WHERE ip_hash = ? AND at > ?').bind(ipHash, now - 600_000),
+      env.DB.prepare("SELECT COUNT(*) AS n FROM write_log WHERE role = 'visitor' AND at > ?").bind(now - 3_600_000),
+      env.DB.prepare("SELECT COUNT(*) AS n FROM write_log WHERE ip_hash = ? AND action = 'create' AND at > ?").bind(ipHash, now - 600_000),
+      env.DB.prepare("SELECT COUNT(*) AS n FROM write_log WHERE ip_hash = ? AND action = 'create' AND at > ?").bind(ipHash, now - 86_400_000),
+      env.DB.prepare("SELECT COUNT(*) AS n FROM write_log WHERE role = 'visitor' AND action = 'create' AND at > ?").bind(now - 3_600_000),
+    ])).map((x) => x.results[0].n);
+    if (w10 >= RATE.writePerIp10m) return { error: err(429, '操作太频繁。请稍后再试。') };
+    if (wg >= RATE.writeGlobal1h) return { error: err(429, '评论区暂时繁忙。请稍后再试。') };
+    if (isCreate && (c10 >= RATE.createPerIp10m || cday >= RATE.createPerIpDay)) return { error: err(429, '评论太频繁。请稍后再试。') };
+    if (isCreate && cg >= RATE.createGlobal1h) return { error: err(429, '评论区暂时繁忙。请稍后再试。') };
+  }
+  return { error: null };
+}
+const logWrite = (env, who, ipHash, action, id, now) => [
+  env.DB.prepare('INSERT INTO write_log (at, ip_hash, role, action, comment_id) VALUES (?, ?, ?, ?, ?)').bind(now, ipHash, who.role, action, id),
+  env.DB.prepare('DELETE FROM write_log WHERE at < ?').bind(now - LOG_KEEP_MS),
+];
 
 function sameOrigin(request, url) {
   const origin = request.headers.get('origin');
@@ -145,8 +176,6 @@ async function listComments(env, url, who) {
   if (page) {
     if (!ID_RE.test(page)) return err(400, '页面参数无效。');
     where.push('page = ?'); args.push(page);
-  } else if (!who.role) {
-    return err(400, '页面参数无效。');
   }
   const st = q.get('status') || 'all';
   if (st === 'open') where.push('resolved_at IS NULL');
@@ -154,8 +183,9 @@ async function listComments(env, url, who) {
   else if (st !== 'all') return err(400, 'status 只能是 open / resolved / all。');
   const role = q.get('author_role');
   if (role) {
-    if (!ROLES.has(role)) return err(400, 'author_role 只能是 owner / agent / anon。');
-    where.push('author_role = ?'); args.push(role);
+    if (!ROLES.has(role)) return err(400, 'author_role 只能是 visitor / agent（旧数据：anon / owner）。');
+    if (role === 'visitor') where.push("author_role IN ('visitor', 'anon')");
+    else { where.push('author_role = ?'); args.push(role); }
   }
   const since = q.get('since');
   if (since) {
@@ -174,18 +204,15 @@ async function createComment(request, env, url, who) {
   if (!sameOrigin(request, url)) return err(403, '来源不被允许。');
   const { p, error } = await readJson(request); if (error) return error;
 
-  const ip = request.headers.get('cf-connecting-ip') || '';
-  const ipHash = (await sha256Hex(`${env.IP_SALT || 'thoughts'}|${ip}`)).slice(0, 32);
+  const ipHash = await ipHashOf(request, env);
 
   const page = typeof p.page === 'string' ? p.page : '';
   if (!ID_RE.test(page)) return err(400, '页面参数无效。');
   const body = clean(p.body, LIMITS.body, { multiline: true });
   if (body === null) return err(400, `评论最多 ${LIMITS.body} 字。`);
   if (!body.trim()) return err(400, '评论不能为空。');
-  const nickname = clean(p.nickname, LIMITS.nickname);
-  if (nickname === null) return err(400, `昵称最多 ${LIMITS.nickname} 字。`);
-  const agentName = clean(p.author_name, LIMITS.nickname);
-  if (agentName === null) return err(400, `名字最多 ${LIMITS.nickname} 字。`);
+  const name = actorName(who, p);
+  if (name === null) return err(400, `昵称最多 ${LIMITS.nickname} 字。`);
 
   let anchor, reopenRoot = null;
   if (p.parent_id != null && p.parent_id !== '') {
@@ -216,67 +243,67 @@ async function createComment(request, env, url, who) {
   }
 
   const now = Date.now();
-  let author_role = 'anon', author_name = '';
-  if (who.role) {
-    author_role = who.role;
-    author_name = who.role === 'owner' ? 'Max' : (agentName.trim() || 'agent');
-    const r = await env.DB.prepare('SELECT COUNT(*) AS n FROM comments WHERE author_role = ? AND created_at > ?').bind(who.role, now - 600_000).first();
-    if (r.n >= RATE.tokenPer10m) return err(429, '评论太频繁。请稍后再试。');
-  } else {
-    const [a, b, c] = await env.DB.batch([
-      env.DB.prepare('SELECT COUNT(*) AS n FROM comments WHERE ip_hash = ? AND created_at > ?').bind(ipHash, now - 600_000),
-      env.DB.prepare('SELECT COUNT(*) AS n FROM comments WHERE ip_hash = ? AND created_at > ?').bind(ipHash, now - 86_400_000),
-      env.DB.prepare("SELECT COUNT(*) AS n FROM comments WHERE author_role = 'anon' AND created_at > ?").bind(now - 3_600_000),
-    ]);
-    if (a.results[0].n >= RATE.perIp10m || b.results[0].n >= RATE.perIpDay) return err(429, '评论太频繁。请稍后再试。');
-    if (c.results[0].n >= RATE.global1h) return err(429, '评论区暂时繁忙。请稍后再试。');
-    if (!(await verifyTurnstile(env, p.turnstile_token, ip))) return err(403, '人机验证未通过。请重试。');
-  }
-
+  const rl = await rateCheck(env, who, ipHash, 'create', now); if (rl.error) return rl.error;
   const id = crypto.randomUUID();
   const stmts = [env.DB.prepare(
     `INSERT INTO comments (id, page, anchor_type, anchor_id, quote, prefix, suffix, media_t, parent_id, nickname, body, created_at, ip_hash, author_role, author_name)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(id, page, anchor.anchor_type, anchor.anchor_id, anchor.quote, anchor.prefix, anchor.suffix, anchor.media_t, anchor.parent_id,
-    who.role ? '' : nickname.trim(), body.trim(), now, who.role ? '' : ipHash, author_role, author_name)];
+    who.role === 'agent' ? '' : name, body.trim(), now, ipHash, who.role, name)];
   if (reopenRoot) stmts.push(env.DB.prepare("UPDATE comments SET resolved_at = NULL, resolved_by = '' WHERE id = ? OR parent_id = ?").bind(reopenRoot, reopenRoot));
+  stmts.push(...logWrite(env, who, ipHash, 'create', id, now));
   await env.DB.batch(stmts);
   return json({ comment: await getComment(env, id) }, 201);
 }
 
 async function updateComment(request, env, url, who, id, forced) {
   if (!sameOrigin(request, url)) return err(403, '来源不被允许。');
-  if (!who.role) return needAuth();
   let p = {};
-  if (forced) p = forced;
-  else { const r = await readJson(request); if (r.error) return r.error; p = r.p; }
+  if (forced) {
+    // POST /resolve|/reopen: optional JSON body {nickname} / {author_name}
+    const ct = request.headers.get('content-type') || '';
+    if (ct.includes('application/json')) { const r = await readJson(request); if (r.error) return r.error; p = r.p; }
+    else if (ct) return err(415, '请用 JSON 提交。');
+    p = { ...p, ...forced };
+  } else { const r = await readJson(request); if (r.error) return r.error; p = r.p; }
+  const by = actorName(who, p);
+  if (by === null) return err(400, `昵称最多 ${LIMITS.nickname} 字。`);
   const c = await getComment(env, id);
   if (!c) return err(404, '找不到这条评论。');
-  const now = Date.now(), stmts = [];
+  const now = Date.now(), stmts = [], actions = [];
   if (p.body !== undefined) {
     const body = clean(p.body, LIMITS.body, { multiline: true });
     if (body === null) return err(400, `评论最多 ${LIMITS.body} 字。`);
     if (!body.trim()) return err(400, '评论不能为空。');
-    stmts.push(env.DB.prepare('UPDATE comments SET body = ?, edited_at = ? WHERE id = ?').bind(body.trim(), now, id));
+    stmts.push(env.DB.prepare('UPDATE comments SET body = ?, edited_at = ?, edited_by = ? WHERE id = ?').bind(body.trim(), now, by || '匿名', id));
+    actions.push('edit');
   }
   if (p.resolved !== undefined) {
     if (typeof p.resolved !== 'boolean') return err(400, 'resolved 必须是 true 或 false。');
     if (c.parent_id) return err(400, '只能解决或重开主评论（不是回复）。');
     stmts.push(p.resolved
-      ? env.DB.prepare('UPDATE comments SET resolved_at = ?, resolved_by = ? WHERE id = ? OR parent_id = ?').bind(now, who.name, id, id)
+      ? env.DB.prepare('UPDATE comments SET resolved_at = ?, resolved_by = ? WHERE id = ? OR parent_id = ?').bind(now, by || '匿名', id, id)
       : env.DB.prepare("UPDATE comments SET resolved_at = NULL, resolved_by = '' WHERE id = ? OR parent_id = ?").bind(id, id));
+    actions.push(p.resolved ? 'resolve' : 'reopen');
   }
   if (!stmts.length) return err(400, '没有要改的字段（body / resolved）。');
+  const ipHash = await ipHashOf(request, env);
+  const rl = await rateCheck(env, who, ipHash, actions[0], now); if (rl.error) return rl.error;
+  stmts.push(...logWrite(env, who, ipHash, actions.join('+'), id, now));
   await env.DB.batch(stmts);
   return json({ comment: await getComment(env, id) });
 }
 
 async function deleteComment(request, env, url, who, id) {
   if (!sameOrigin(request, url)) return err(403, '来源不被允许。');
-  if (!who.role) return needAuth();
   const c = await env.DB.prepare('SELECT id FROM comments WHERE id = ?').bind(id).first();
   if (!c) return err(404, '找不到这条评论。');
-  const r = await env.DB.prepare('DELETE FROM comments WHERE id = ? OR parent_id = ?').bind(id, id).run();
+  const now = Date.now(), ipHash = await ipHashOf(request, env);
+  const rl = await rateCheck(env, who, ipHash, 'delete', now); if (rl.error) return rl.error;
+  const [r] = await env.DB.batch([
+    env.DB.prepare('DELETE FROM comments WHERE id = ? OR parent_id = ?').bind(id, id),
+    ...logWrite(env, who, ipHash, 'delete', id, now),
+  ]);
   return json({ deleted: r.meta?.changes ?? null, id });
 }
 
@@ -285,11 +312,10 @@ async function api(request, env, url) {
   if (who.error) return err(401, '令牌无效。');
   const m = request.method;
   if (url.pathname === '/api/config' && m === 'GET') {
-    return json({ turnstile_sitekey: env.TURNSTILE_SITEKEY || null }, 200, { 'cache-control': 'public, max-age=300' });
+    // kept for pages cached from before 2026-10-08: no Turnstile any more
+    return json({ turnstile_sitekey: null }, 200, { 'cache-control': 'public, max-age=300' });
   }
-  if (url.pathname === '/api/me' && m === 'GET') {
-    return who.role ? json({ role: who.role, name: who.name }) : needAuth();
-  }
+  if (url.pathname === '/api/me' && m === 'GET') return json({ role: who.role });
   if (url.pathname === '/api/comments') {
     if (m === 'GET') return listComments(env, url, who);
     if (m === 'POST') return createComment(request, env, url, who);
