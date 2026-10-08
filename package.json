@@ -1,0 +1,13 @@
+{
+  "name": "thoughts",
+  "private": true,
+  "scripts": {
+    "build": "python3 tools/build.py",
+    "dev": "wrangler dev",
+    "deploy": "python3 tools/build.py && wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.30.0"
+  },
+  "type": "module"
+}

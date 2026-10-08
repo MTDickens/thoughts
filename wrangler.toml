@@ -1,0 +1,21 @@
+name = "thoughts"
+main = "src/worker.js"
+compatibility_date = "2025-09-01"
+workers_dev = false
+
+routes = [{ pattern = "thoughts.ycjian.com", custom_domain = true }]
+
+# Pages are embedded into the Worker via src/site.gen.js (python3 tools/build.py).
+
+[[d1_databases]]
+binding = "DB"
+database_name = "thoughts-comments"
+database_id = "dd80e884-0d5c-4950-b818-4f71ffac7e35"
+
+[vars]
+TURNSTILE_SITEKEY = "0x4AAAAAAFRO_WQYW7MzlqsY"
+
+# Secrets (set once, never commit):
+#   npx wrangler secret put TURNSTILE_SECRET
+#   npx wrangler secret put ADMIN_TOKEN
+#   npx wrangler secret put IP_SALT
