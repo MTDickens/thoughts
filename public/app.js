@@ -280,3 +280,70 @@
     }
   })();
 })();
+
+/* ---------- components: tabs + <x-viz> hook ---------- */
+(() => {
+  'use strict';
+  for (const box of document.querySelectorAll('.tabs')) {
+    const tabs = [...box.querySelectorAll(':scope > .tab-list > [role="tab"]')];
+    const panels = [...box.querySelectorAll(':scope > .tab-panel')];
+    if (!tabs.length) continue;
+    const show = (i, focus) => tabs.forEach((t, k) => {
+      const on = k === i; t.setAttribute('aria-selected', on); t.tabIndex = on ? 0 : -1; panels[k].hidden = !on;
+      if (on && focus) t.focus();
+    });
+    tabs.forEach((t, i) => {
+      t.addEventListener('click', () => show(i));
+      t.addEventListener('keydown', (e) => {
+        const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+        if (d) { e.preventDefault(); show((i + d + tabs.length) % tabs.length, true); }
+      });
+    });
+    box.classList.add('js'); show(0);
+  }
+
+  // <x-viz kind="bar|line|..." src="/data/x.csv|.json" data-x="col" data-y="col">.
+  // Extend: window.thoughtsViz.kinds.myKind = (el, rows, opts) => { ...draw into el... }.
+  const NS = 'http://www.w3.org/2000/svg';
+  const svgEl = (tag, attrs, text) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; return e; };
+  const parseCsv = (t) => { const [h, ...rows] = t.trim().split(/\r?\n/).map((l) => l.split(',')); return rows.map((r) => Object.fromEntries(h.map((k, i) => [k.trim(), r[i] != null ? r[i].trim() : '']))); };
+  function bar(el, rows, o) {
+    const x = o.x || Object.keys(rows[0])[0], y = o.y || Object.keys(rows[0])[1];
+    const vals = rows.map((r) => +r[y]); const max = Math.max(...vals), min = Math.min(0, ...vals);
+    const W = 600, rowH = 30, L = 150, H = rows.length * rowH + 10;
+    const s = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, role: 'presentation' });
+    rows.forEach((r, i) => {
+      const w = ((vals[i] - min) / ((max - min) || 1)) * (W - L - 70);
+      s.append(svgEl('text', { x: L - 8, y: i * rowH + 20, 'text-anchor': 'end' }, r[x]),
+        svgEl('rect', { class: 'bar', x: L, y: i * rowH + 6, width: Math.max(1, w), height: rowH - 10, rx: 4 }),
+        svgEl('text', { class: 'val', x: L + w + 6, y: i * rowH + 20 }, r[y]));
+    });
+    el.append(s);
+  }
+  function line(el, rows, o) {
+    const x = o.x || Object.keys(rows[0])[0], y = o.y || Object.keys(rows[0])[1];
+    const vals = rows.map((r) => +r[y]); const max = Math.max(...vals), min = Math.min(...vals);
+    const W = 600, H = 220, P = 30, sx = (i) => P + (i * (W - 2 * P)) / Math.max(1, rows.length - 1), sy = (v) => H - P - ((v - min) / ((max - min) || 1)) * (H - 2 * P);
+    const s = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, role: 'presentation' });
+    s.append(svgEl('line', { class: 'axis', x1: P, y1: H - P, x2: W - P, y2: H - P }));
+    s.append(svgEl('polyline', { class: 'line', points: vals.map((v, i) => `${sx(i)},${sy(v)}`).join(' ') }));
+    rows.forEach((r, i) => s.append(svgEl('circle', { class: 'dot', cx: sx(i), cy: sy(vals[i]), r: 3.5 }), svgEl('text', { x: sx(i), y: H - 10, 'text-anchor': 'middle' }, r[x])));
+    el.append(s);
+  }
+  const reg = window.thoughtsViz = window.thoughtsViz || { kinds: {} };
+  Object.assign(reg.kinds, { bar, line }, reg.kinds);
+  if (!customElements.get('x-viz')) customElements.define('x-viz', class extends HTMLElement {
+    async connectedCallback() {
+      if (this.dataset.done) return; this.dataset.done = '1';
+      const kind = this.getAttribute('kind'), src = this.getAttribute('src');
+      const fail = (msg) => { this.textContent = msg; this.classList.add('viz-error'); };
+      const draw = reg.kinds[kind];
+      if (!draw) return fail(`未知的可视化类型：${kind}`);
+      try {
+        let rows = [];
+        if (src) { const t = await (await fetch(src)).text(); rows = src.endsWith('.json') ? JSON.parse(t) : parseCsv(t); }
+        this.textContent = ''; draw(this, rows, { ...this.dataset });
+      } catch (_) { fail('可视化加载失败。'); }
+    }
+  });
+})();

@@ -8,17 +8,21 @@
 | `/wrop-improvement-directions` | `content/wrop-improvement-directions.md` |
 | `/wrop-metrics-zh` | `content/wrop-metrics-zh.md`（图片 `content/assets/wrop-metrics-g26-sheet.png`） |
 
-加新页面：把 `.md` 放进 `content/`，在 `tools/build.py` 的 `PAGES` 里加一项。图片放 `content/assets/`，并加进 `ASSETS`。
+加新页面：在 `content/` 放一个带 YAML 头的 `.md`。写法见 **[AUTHORING-SPEC.md](AUTHORING-SPEC.md)**（给 agent 的速查表）。首页自动生成。
 
 ## 结构
 
 | 路径 | 作用 |
 |---|---|
-| `content/*.md` | 原文。改内容只改这里。 |
-| `content/assets/` | 页面引用的图片。 |
+| `content/*.md` | 原文（YAML 头 + Markdown + `:::` 指令）。一文件一页。 |
+| `content/assets/` | 页面引用的图片、视频、数据。原样发布。 |
+| `content/refs.yaml` | 共享文献表，`[@key]` 引用。 |
+| `AUTHORING-SPEC.md` | 写法速查（给 agent）。 |
+| `tools/vendor/` | 构建依赖（markdown-it-py、mdit-py-plugins、mdurl、PyYAML，均 MIT），构建不联网。 |
+| `tools/examples/` | 全部组件的样例。只给 build 自检用，不发布。 |
 | `tools/template.html` | 文章页骨架。 |
 | `tools/index-template.html` | 首页骨架。 |
-| `tools/build.py` | 生成 `public/<slug>.html` 和 `public/index.html`，再打包成 `src/site.gen.js`。 |
+| `tools/build.py` | 自检 → 校验 → 生成 `public/<slug>.html` 和首页 → 打包成 `src/site.gen.js`。校验不过就失败，不写文件。 |
 | `public/` | 页面、样式、脚本、图标。 |
 | `src/worker.js` | Cloudflare Worker。出页面，也出评论接口。 |
 | `src/site.gen.js` | 生成文件。不要手改。 |
@@ -68,6 +72,8 @@ npx wrangler dev
 - wrangler 固定为 4.30.0（`package.json`）。它在 Node 18–24 上都能跑。
 
 改内容的流程：改 `content/` 或 `public/` → 跑 `python3 tools/build.py` → 提交 → `git push`。
+
+推送后 2 分钟内没有构建：用 API 手动起构建（见 AUTHORING-SPEC.md 第 4 节）。
 
 ### 手动部署
 

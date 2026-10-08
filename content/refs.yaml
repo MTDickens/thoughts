@@ -1,0 +1,4 @@
+# Shared references for all pages. One entry per line: key: text (Markdown inline allowed).
+# Cite in a page with [@key] or [@a; @b]. Unknown keys fail the build.
+# Quote the text if it contains ": " or starts with a special character. Example:
+# elo-wiki: "Wikipedia: [Elo rating system](https://en.wikipedia.org/wiki/Elo_rating_system)"
