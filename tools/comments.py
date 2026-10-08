@@ -55,6 +55,8 @@ class Api:
             except Exception:
                 msg = ""
             sys.exit(f"HTTP {e.code}: {msg or e.reason}")
+        except (urllib.error.URLError, OSError) as e:
+            sys.exit(f"network error ({self.base}): {getattr(e, 'reason', e)}")
 
 
 def fmt_time(ms):
