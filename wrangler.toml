@@ -10,7 +10,7 @@ routes = [{ pattern = "thoughts.ycjian.com", custom_domain = true }]
 [[d1_databases]]
 binding = "DB"
 database_name = "thoughts-comments"
-database_id = "dd80e884-0d5c-4950-b818-4f71ffac7e35"
+database_id = "4a8bc743-c65d-4353-bfde-444c0fce7783"
 
 [vars]
 TURNSTILE_SITEKEY = "0x4AAAAAAFRO_WQYW7MzlqsY"
