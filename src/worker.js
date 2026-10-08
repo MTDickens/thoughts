@@ -20,9 +20,31 @@ const PAGE_HEADERS = {
   'content-security-policy': "default-src 'self'; script-src 'self' https://challenges.cloudflare.com https://static.cloudflareinsights.com; frame-src https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://cloudflareinsights.com; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
 };
 
+// Decode base64 entries (images) once, on first use.
+const BIN = new Map();
+function fileBody(path, file) {
+  if (file.body != null) return file.body;
+  let b = BIN.get(path);
+  if (!b) { const s = atob(file.b64); b = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i); BIN.set(path, b); }
+  return b;
+}
+
+// Clean URLs: "/" -> index.html, "/slug" -> slug.html. "/slug.html" and "/slug/" redirect to "/slug".
+function resolvePath(pathname) {
+  if (pathname === '/') return { path: '/index.html' };
+  if (pathname === '/index.html') return { redirect: '/' };
+  if (pathname.endsWith('.html') && SITE[pathname]) return { redirect: pathname.slice(0, -5) };
+  const trimmed = pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+  if (trimmed !== pathname && SITE[`${trimmed}.html`]) return { redirect: trimmed };
+  if (SITE[`${pathname}.html`]) return { path: `${pathname}.html` };
+  return { path: pathname };
+}
+
 function serveStatic(request, url) {
   if (request.method !== 'GET' && request.method !== 'HEAD') return new Response('Method Not Allowed', { status: 405, headers: { allow: 'GET, HEAD' } });
-  const path = url.pathname === '/' ? '/index.html' : url.pathname;
+  const r = resolvePath(url.pathname);
+  if (r.redirect) return new Response(null, { status: 301, headers: { location: r.redirect + url.search + url.hash, ...SEC_HEADERS } });
+  const path = r.path;
   const file = SITE[path];
   if (!file) {
     return new Response('<!doctype html><meta charset="utf-8"><title>404</title><p>页面不存在。<a href="/">回到首页</a>。</p>', {
@@ -36,7 +58,7 @@ function serveStatic(request, url) {
     ...PAGE_HEADERS,
   };
   if (request.headers.get('if-none-match') === file.etag) return new Response(null, { status: 304, headers });
-  return new Response(request.method === 'HEAD' ? null : file.body, { headers });
+  return new Response(request.method === 'HEAD' ? null : fileBody(path, file), { headers });
 }
 
 function json(data, status = 200, extra = {}) {

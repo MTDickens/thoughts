@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WROP 评测指标：是什么、怎么算、哪里弱 · thoughts</title>
+<meta name="description" content="WROP 的评测指标：是什么、怎么算、哪里弱。可选中文字匿名评论。">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f7f6f2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css">
+<script src="/app.js" defer></script>
+</head>
+<body data-page="wrop-metrics-zh">
+<a class="skip" href="#main">跳到正文</a>
+<div class="progress" aria-hidden="true"><span id="progress-bar"></span></div>
+<nav class="topnav" aria-label="站点"><div class="topnav-inner"><a class="brand" href="/">thoughts</a><div class="topnav-links"><a href="/wrop-improvement-directions" title="WROP 后续改进方向">改进方向</a><a href="/wrop-metrics-zh" aria-current="page" title="WROP 评测指标：是什么、怎么算、哪里弱">评测指标</a></div></div></nav>
+
+<header class="hero">
+  <div class="hero-inner" data-section="intro" id="intro">
+    <p class="eyebrow">thoughts.ycjian.com · 研究笔记</p>
+    <h1>WROP 评测指标：是什么、怎么算、哪里弱</h1>
+    <p class="lead">依据论文 arXiv 2609.28654、代码仓库、Hugging Face 数据和排行榜页。只用已核实的事实。</p>
+    <ul class="chips" aria-label="概要"><li>7 节</li><li>人工 Elo 与自动指标</li><li>G26 复算例子</li><li>选中文字即可评论</li></ul>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc" aria-label="目录">
+    <p class="toc-title">目录</p>
+    <ol><li><a href="#s1"><span class="toc-n">1</span><span class="toc-t">一句话结论</span></a></li><li><a href="#s2"><span class="toc-n">2</span><span class="toc-t">人工指标</span></a></li><li><a href="#s3"><span class="toc-n">3</span><span class="toc-t">自动指标</span></a></li><li><a href="#s4"><span class="toc-n">4</span><span class="toc-t">主要结果</span></a></li><li><a href="#s5"><span class="toc-n">5</span><span class="toc-t">G26 例子</span></a></li><li><a href="#s6"><span class="toc-n">6</span><span class="toc-t">主要问题</span></a></li><li><a href="#s7"><span class="toc-n">7</span><span class="toc-t">改进建议</span></a></li></ol>
+    <a class="toc-comments" href="#comments">全部评论 <span class="count" id="toc-count">0</span></a>
+  </nav>
+
+  <main id="main">
+    <article class="doc">
+<section class="card" id="s1" data-section="s1" aria-labelledby="s1-h"><h2 id="s1-h"><span class="badge" aria-hidden="true">1</span><span class="h-num">1. </span><span class="h-t">一句话结论</span></h2>
+<blockquote data-anchor-id="s1-note-1"><p>主指标是人工 Elo。像素类指标只是辅助。所有指标都没有及格线。仓库里没有任何评测代码。</p></blockquote>
+<div class="table-wrap" data-anchor-id="s1-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead><tr><th class="k" scope="col">项</th>
+<th scope="col">状态</th></tr></thead>
+<tbody>
+<tr><td class="k" data-label="项"><span class="cv">主指标</span></td>
+<td data-label="状态"><span class="cv">人工两两比较 → Bradley–Terry → Elo</span></td></tr>
+<tr><td class="k" data-label="项"><span class="cv">辅助指标</span></td>
+<td data-label="状态"><span class="cv">与参考视频比的像素/特征指标</span></td></tr>
+<tr><td class="k" data-label="项"><span class="cv">及格线</span></td>
+<td data-label="状态"><span class="cv">无（只有评分员资格线 8/10）</span></td></tr>
+<tr><td class="k" data-label="项"><span class="cv">评测代码</span></td>
+<td data-label="状态"><span class="cv">无</span></td></tr>
+<tr><td class="k" data-label="项"><span class="cv">原始人工判断</span></td>
+<td data-label="状态"><span class="cv">未公开</span></td></tr>
+<tr><td class="k" data-label="项"><span class="cv">消融实验</span></td>
+<td data-label="状态"><span class="cv">无</span></td></tr>
+</tbody>
+</table></div>
+</section>
+<section class="card" id="s2" data-section="s2" aria-labelledby="s2-h"><h2 id="s2-h"><span class="badge" aria-hidden="true">2</span><span class="h-num">2. </span><span class="h-t">人工指标</span></h2>
+<blockquote data-anchor-id="s2-note-1"><p>20 名众包评分员。共 361 次有效两两判断。每个模型约 51 次。评分员一次点击，同时判三条：贴合文字、运动自然、物体恒存。</p></blockquote>
+<blockquote data-anchor-id="s2-note-2"><p>评分员很可能看了参考视频。§1 第 2 页写明："Generated continuations are judged by human evaluators against physically consistent, hand-authored animation ground truth"。§4.4 第 9 页只写了 "the input video and the text prompt" 和 A/B 两段。所以 §4.4 的描述不完整。评分说明没有公开。</p></blockquote>
+<div class="table-wrap wide stack" data-anchor-id="s2-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead><tr><th class="k" scope="col">指标</th>
+<th scope="col">测什么</th>
+<th scope="col">怎么算</th>
+<th scope="col">越高还是越低好</th></tr></thead>
+<tbody>
+<tr><td class="k" data-label="指标"><span class="cv">Elo</span></td>
+<td data-label="测什么"><span class="cv">人更偏好哪个模型</span></td>
+<td data-label="怎么算"><span class="cv">选 A / B / 差不多；平局算半胜；Bradley–Terry 拟合；均值 1500</span></td>
+<td data-label="越高还是越低好"><span class="cv">越高越好</span></td></tr>
+<tr><td class="k" data-label="指标"><span class="cv">95% CI</span></td>
+<td data-label="测什么"><span class="cv">Elo 的不确定性</span></td>
+<td data-label="怎么算"><span class="cv">按评分员重抽样 1000 次</span></td>
+<td data-label="越高还是越低好"><span class="cv">越窄越确定</span></td></tr>
+<tr><td class="k" data-label="指标"><span class="cv">Score rate</span></td>
+<td data-label="测什么"><span class="cv">原始胜率</span></td>
+<td data-label="怎么算"><span class="cv">胜 = 1，平 = 0.5，除以场次</span></td>
+<td data-label="越高还是越低好"><span class="cv">越高越好</span></td></tr>
+<tr><td class="k" data-label="指标"><span class="cv">Games</span></td>
+<td data-label="测什么"><span class="cv">参加的判断次数</span></td>
+<td data-label="怎么算"><span class="cv">计数；每个模型 50–52</span></td>
+<td data-label="越高还是越低好"><span class="cv">—</span></td></tr>
+<tr><td class="k" data-label="指标"><span class="cv">Top-1 概率</span></td>
+<td data-label="测什么"><span class="cv">排第一的机会</span></td>
+<td data-label="怎么算"><span class="cv">1000 次重抽样里排第一的比例</span></td>
+<td data-label="越高还是越低好"><span class="cv">越高越好</span></td></tr>
+<tr><td class="k" data-label="指标"><span class="cv">分族 Elo / 排名</span></td>
+<td data-label="测什么"><span class="cv">单个任务族上的偏好</span></td>
+<td data-label="怎么算"><span class="cv">每族单独拟合；每族 36–96 场</span></td>
+<td data-label="越高还是越低好"><span class="cv">Elo 越高越好；排名 1 最好</span></td></tr>
+</tbody>
+</table></div>
+<blockquote data-anchor-id="s2-note-3"><p>经验值（Elo）：标准 Elo 用 400 尺度。预期得分 = 1/(1+10^(−d/400))。差 100 分约 64%。差 200 分约 76%。WROP 的 1500 是均值。WROP 用 Bradley–Terry 拟合。换算系数没公开。下面的换算假设标准 400 尺度。例：PWM-WROP 比 Grok Imagine 高 222.5 分，约 78%。Wan 3.0 Prime 比 PWM-WROP 高 44.1 分，约 56%。出处：<a href="https://en.wikipedia.org/wiki/Elo_rating_system" target="_blank" rel="noopener noreferrer">Wikipedia: Elo rating system</a></p></blockquote>
+<div class="table-wrap" data-anchor-id="s2-table-2" tabindex="0" role="region" aria-label="表格"><table>
+<thead><tr><th class="k" scope="col">评分员质检</th>
+<th scope="col">数</th></tr></thead>
+<tbody>
+<tr><td class="k" data-label="评分员质检"><span class="cv">资格测试</span></td>
+<td data-label="数"><span class="cv">及格线 8/10</span></td></tr>
+<tr><td class="k" data-label="评分员质检"><span class="cv">注意力检查</span></td>
+<td data-label="数"><span class="cv">90.0% 正确</span></td></tr>
+<tr><td class="k" data-label="评分员质检"><span class="cv">重复题自洽</span></td>
+<td data-label="数"><span class="cv">93.5%，Cohen's κ = 0.891</span></td></tr>
+<tr><td class="k" data-label="评分员质检"><span class="cv">左右位置偏差</span></td>
+<td data-label="数"><span class="cv">左边胜 51.4%（p = 0.615）</span></td></tr>
+</tbody>
+</table></div>
+</section>
+<section class="card" id="s3" data-section="s3" aria-labelledby="s3-h"><h2 id="s3-h"><span class="badge" aria-hidden="true">3</span><span class="h-num">3. </span><span class="h-t">自动指标</span></h2>
+<blockquote data-anchor-id="s3-note-1"><p>模型输出先按各模型规则裁剪。再均匀重采样到 60 帧。再缩到 320×192。然后和参考视频逐题比。最后对 300 题取平均。论文自己说：这些指标只测「像不像参考」，不测物理推理对不对。</p></blockquote>
+<div class="table-wrap wide stack" data-anchor-id="s3-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead><tr><th class="k" scope="col">指标</th>
+<th scope="col">测什么</th>
+<th scope="col">怎么算</th>
+<th scope="col">越高还是越低好</th>
+<th scope="col">报了吗</th></tr></thead>
+<tbody>
+<tr><td class="k" data-label="指标"><span class="cv">MSE</span></td>
+<td data-label="测什么"><span class="cv">像素平方误差</span></td>
+<td data-label="怎么算"><span class="cv">320×192</span></td>
+<td data-label="越高还是越低好"><span class="cv">越低越好</span></td>
+<td data-label="报了吗"><span class="cv">表 3</span></td></tr>
+<tr><td class="k" data-label="指标"><span class="cv">MAE</span></td>
+<td data-label="测什么"><span class="cv">像素绝对误差</span></td>
+<td data-label="怎么算"><span class="cv">320×192</span></td>
+<td data-label="越高还是越低好"><span class="cv">越低越好</span></td>
+<td data-label="报了吗"><span class="cv"><strong>算了，未报</strong></span></td></tr>
+<tr><td class="k" data-label="指标"><span class="cv">PSNR</span></td>
+<td data-label="测什么"><span class="cv">MSE 的对数形式</span></td>
+<td data-label="怎么算"><span class="cv">320×192</span></td>
+<td data-label="越高还是越低好"><span class="cv">越高越好</span></td>
+<td data-label="报了吗"><span class="cv">表 3</span></td></tr>
+<tr><td class="k" data-label="指标"><span class="cv">SSIM</span></td>
+<td data-label="测什么"><span class="cv">局部结构相似</span></td>
+<td data-label="怎么算"><span class="cv">320×192；窗口未写</span></td>
+<td data-label="越高还是越低好"><span class="cv">越高越好</span></td>
+<td data-label="报了吗"><span class="cv">表 3</span></td></tr>
+<tr><td class="k" data-label="指标"><span class="cv">MS-SSIM</span></td>
+<td data-label="测什么"><span class="cv">多尺度 SSIM</span></td>
+<td data-label="怎么算"><span class="cv">320×192</span></td>
+<td data-label="越高还是越低好"><span class="cv">越高越好</span></td>
+<td data-label="报了吗"><span class="cv">表 3</span></td></tr>
+<tr><td class="k" data-label="指标"><span class="cv">LPIPS</span></td>
+<td data-label="测什么"><span class="cv">感知距离</span></td>
+<td data-label="怎么算"><span class="cv">320×192；骨干网未写</span></td>
+<td data-label="越高还是越低好"><span class="cv">越低越好</span></td>
+<td data-label="报了吗"><span class="cv">表 3</span></td></tr>
+<tr><td class="k" data-label="指标"><span class="cv">时间差 L1</span></td>
+<td data-label="测什么"><span class="cv">帧间变化是否一致</span></td>
+<td data-label="怎么算"><span class="cv">公式未写</span></td>
+<td data-label="越高还是越低好"><span class="cv">应为越低越好</span></td>
+<td data-label="报了吗"><span class="cv"><strong>算了，未报</strong></span></td></tr>
+<tr><td class="k" data-label="指标"><span class="cv">末帧 MSE / SSIM / LPIPS</span></td>
+<td data-label="测什么"><span class="cv">只比最后一帧</span></td>
+<td data-label="怎么算"><span class="cv">320×192 和 1280×720</span></td>
+<td data-label="越高还是越低好"><span class="cv">MSE、LPIPS 越低越好；SSIM 越高越好</span></td>
+<td data-label="报了吗"><span class="cv"><strong>算了，未列表</strong>（正文只给 PWM-WROP 末帧 LPIPS 0.166）</span></td></tr>
+<tr><td class="k" data-label="指标"><span class="cv">CLIP</span></td>
+<td data-label="测什么"><span class="cv">语义相似</span></td>
+<td data-label="怎么算"><span class="cv">ViT-B/32，224×224；定义未写</span></td>
+<td data-label="越高还是越低好"><span class="cv">越高越好</span></td>
+<td data-label="报了吗"><span class="cv">表 3</span></td></tr>
+<tr><td class="k" data-label="指标"><span class="cv">FID</span></td>
+<td data-label="测什么"><span class="cv">生成帧与参考帧的分布距离</span></td>
+<td data-label="怎么算"><span class="cv">299×299；每 2 帧取 1；每边约 9030 帧；每个模型只有一个数</span></td>
+<td data-label="越高还是越低好"><span class="cv">越低越好</span></td>
+<td data-label="报了吗"><span class="cv">表 3</span></td></tr>
+</tbody>
+</table></div>
+<p><strong>经验值</strong>（只供参考；最后一列是我们打开读过的出处）</p>
+<div class="table-wrap wide stack" data-anchor-id="s3-table-2" tabindex="0" role="region" aria-label="表格"><table>
+<thead><tr><th class="k" scope="col">指标</th>
+<th scope="col">经验值</th>
+<th scope="col">对眼睛意味着什么</th>
+<th scope="col">WROP 表 3 范围</th>
+<th scope="col">出处</th></tr></thead>
+<tbody>
+<tr><td class="k" data-label="指标"><span class="cv">MSE</span></td>
+<td data-label="经验值"><span class="cv">无通用阈值。PSNR = 10·log10(MAX²/MSE)。</span></td>
+<td data-label="对眼睛意味着什么"><span class="cv">要换算成 PSNR 再看</span></td>
+<td data-label="WROP 表 3 范围"><span class="cv">2.97–40.59（×10⁻³）</span></td>
+<td data-label="出处"><span class="cv"><a href="https://en.wikipedia.org/wiki/Peak_signal-to-noise_ratio" target="_blank" rel="noopener noreferrer">Wikipedia: PSNR</a></span></td></tr>
+<tr><td class="k" data-label="指标"><span class="cv">PSNR</span></td>
+<td data-label="经验值"><span class="cv">8 位有损压缩常见 30–50 dB。无线传输可接受约 20–25 dB。「&gt;40 几乎看不出、30–40 好、20–30 看得出、&lt;20 差」是常见说法，未找到可靠出处。</span></td>
+<td data-label="对眼睛意味着什么"><span class="cv">越高，像素差越小</span></td>
+<td data-label="WROP 表 3 范围"><span class="cv">15.03–27.51 dB</span></td>
+<td data-label="出处"><span class="cv">同上</span></td></tr>
+<tr><td class="k" data-label="指标"><span class="cv">SSIM / MS-SSIM</span></td>
+<td data-label="经验值"><span class="cv">取值 −1 到 1。1 = 完全相同。0 = 不相似。无公认阈值。</span></td>
+<td data-label="对眼睛意味着什么"><span class="cv">越接近 1，结构越像</span></td>
+<td data-label="WROP 表 3 范围"><span class="cv">SSIM 0.768–0.942；MS-SSIM 0.594–0.921</span></td>
+<td data-label="出处"><span class="cv"><a href="https://en.wikipedia.org/wiki/Structural_similarity_index_measure" target="_blank" rel="noopener noreferrer">Wikipedia: SSIM</a></span></td></tr>
+<tr><td class="k" data-label="指标"><span class="cv">LPIPS</span></td>
+<td data-label="经验值"><span class="cv">0 = 相同。无公认阈值。原论文说：模糊让人眼差别大，但 L2 变化小；SSIM 不是为几何形变设计的。</span></td>
+<td data-label="对眼睛意味着什么"><span class="cv">越低，越接近人眼感觉</span></td>
+<td data-label="WROP 表 3 范围"><span class="cv">0.081–0.349</span></td>
+<td data-label="出处"><span class="cv"><a href="https://arxiv.org/abs/1801.03924" target="_blank" rel="noopener noreferrer">Zhang et al. 2018</a></span></td></tr>
+<tr><td class="k" data-label="指标"><span class="cv">FID</span></td>
+<td data-label="经验值"><span class="cv">无绝对标准。只在同一协议内可比。原论文：干扰越强，FID 单调升高。原论文用 50,000 张图；WROP 每边约 9,030 帧。</span></td>
+<td data-label="对眼睛意味着什么"><span class="cv">越低，整体分布越接近</span></td>
+<td data-label="WROP 表 3 范围"><span class="cv">13.6–73.7</span></td>
+<td data-label="出处"><span class="cv"><a href="https://arxiv.org/abs/1706.08500" target="_blank" rel="noopener noreferrer">Heusel et al. 2017</a></span></td></tr>
+<tr><td class="k" data-label="指标"><span class="cv">CLIP（ViT-B/32）</span></td>
+<td data-label="经验值"><span class="cv">无标准阈值。CLIP 用余弦相似度。</span></td>
+<td data-label="对眼睛意味着什么"><span class="cv">只反映语义像不像</span></td>
+<td data-label="WROP 表 3 范围"><span class="cv">0.853–0.962（挤在 1 附近）</span></td>
+<td data-label="出处"><span class="cv"><a href="https://arxiv.org/abs/2103.00020" target="_blank" rel="noopener noreferrer">Radford et al. 2021</a></span></td></tr>
+</tbody>
+</table></div>
+<blockquote data-anchor-id="s3-note-2"><p>MSE 与 PSNR：论文没写 MAX。按表 3 的量级推断 MAX = 1（像素归一到 0–1）。若 MAX = 255，PSNR 会是 62–73 dB，与表 3 不符。</p></blockquote>
+<blockquote data-anchor-id="s3-note-3"><p>核对：14 个模型都满足「表 3 PSNR 高于用平均 MSE 算出的 PSNR」，高 1.1–7.1 dB。例：Wan 3.0 Prime 表 3 为 27.15 dB；用平均 MSE 4.48×10⁻³ 算是 23.49 dB。这提示 PSNR 是先逐段算、再取平均（推断）。</p></blockquote>
+<blockquote data-anchor-id="s3-note-4"><p>注意：这些经验值假设「同一画面加了失真」（压缩、噪声）。WROP 里候选和参考在时间和位置上都会不同。所以这些数只能比模型，不能读成「看起来多像」。例：G26 冻结最后一帧什么都没做，PSNR 仍有 27.22 dB（我们的复算，MSE 1.90×10⁻³）。这高于无线传输「可接受」的 20–25 dB，但它答错了。</p></blockquote>
+<blockquote data-anchor-id="s3-note-5"><p>考题元数据里还有一个规则判分器的接口（PermanencePhysicsEvaluator，300 题中 276 题有）。代码没公开。论文没提。没有结果。</p></blockquote>
+</section>
+<section class="card" id="s4" data-section="s4" aria-labelledby="s4-h"><h2 id="s4-h"><span class="badge" aria-hidden="true">4</span><span class="h-num">4. </span><span class="h-t">主要结果</span></h2>
+<blockquote data-anchor-id="s4-note-1"><p>头条指标是人工 Elo（表 2，第 10 页）。前四名的置信区间互相重叠。第一名是统计上的并列。</p></blockquote>
+<div class="table-wrap wide stack xwide" data-anchor-id="s4-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead><tr><th class="k" scope="col">名次</th>
+<th scope="col">模型</th>
+<th scope="col">类型</th>
+<th scope="col">Elo</th>
+<th scope="col">95% CI</th>
+<th scope="col">Score rate</th>
+<th scope="col">Games</th></tr></thead>
+<tbody>
+<tr><td class="k" data-label="名次"><span class="cv">1</span></td>
+<td data-label="模型"><span class="cv">Wan 3.0 Prime</span></td>
+<td data-label="类型"><span class="cv">Reference-to-video</span></td>
+<td data-label="Elo"><span class="cv">1723.6</span></td>
+<td data-label="95% CI"><span class="cv">[1629.2, 1864.9]</span></td>
+<td data-label="Score rate"><span class="cv">77.9%</span></td>
+<td data-label="Games"><span class="cv">52</span></td></tr>
+<tr><td class="k" data-label="名次"><span class="cv">2</span></td>
+<td data-label="模型"><span class="cv">MiniMax H3</span></td>
+<td data-label="类型"><span class="cv">Reference-to-video</span></td>
+<td data-label="Elo"><span class="cv">1723.6</span></td>
+<td data-label="95% CI"><span class="cv">[1644.5, 1837.6]</span></td>
+<td data-label="Score rate"><span class="cv">77.9%</span></td>
+<td data-label="Games"><span class="cv">52</span></td></tr>
+<tr><td class="k" data-label="名次"><span class="cv">3</span></td>
+<td data-label="模型"><span class="cv">PWM-WROP</span></td>
+<td data-label="类型"><span class="cv">True continuation</span></td>
+<td data-label="Elo"><span class="cv">1679.5</span></td>
+<td data-label="95% CI"><span class="cv">[1603.5, 1781.5]</span></td>
+<td data-label="Score rate"><span class="cv">73.1%</span></td>
+<td data-label="Games"><span class="cv">52</span></td></tr>
+<tr><td class="k" data-label="名次"><span class="cv">4</span></td>
+<td data-label="模型"><span class="cv">Seedance 2.5</span></td>
+<td data-label="类型"><span class="cv">Reference-to-video</span></td>
+<td data-label="Elo"><span class="cv">1649.6</span></td>
+<td data-label="95% CI"><span class="cv">[1554.2, 1751.5]</span></td>
+<td data-label="Score rate"><span class="cv">69.6%</span></td>
+<td data-label="Games"><span class="cv">51</span></td></tr>
+<tr><td class="k" data-label="名次"><span class="cv">14</span></td>
+<td data-label="模型"><span class="cv">MAGI-1 24B</span></td>
+<td data-label="类型"><span class="cv">True continuation</span></td>
+<td data-label="Elo"><span class="cv">1248.0</span></td>
+<td data-label="95% CI"><span class="cv">[1137.2, 1315.6]</span></td>
+<td data-label="Score rate"><span class="cv">19.2%</span></td>
+<td data-label="Games"><span class="cv">52</span></td></tr>
+</tbody>
+</table></div>
+<div class="table-wrap" data-anchor-id="s4-table-2" tabindex="0" role="region" aria-label="表格"><table>
+<thead><tr><th class="k" scope="col">其他</th>
+<th scope="col">数</th></tr></thead>
+<tbody>
+<tr><td class="k" data-label="其他"><span class="cv">Top-1 概率</span></td>
+<td data-label="数"><span class="cv">Wan 3.0 Prime 46.8%，MiniMax H3 36.4%，PWM-WROP 12.3%，Seedance 2.5 4.5%，其余 0</span></td></tr>
+<tr><td class="k" data-label="其他"><span class="cv">PWM-WROP 自动指标</span></td>
+<td data-label="数"><span class="cv">LPIPS 0.081、MS-SSIM 0.921，两项都是最好</span></td></tr>
+</tbody>
+</table></div>
+</section>
+<section class="card" id="s5" data-section="s5" aria-labelledby="s5-h"><h2 id="s5-h"><span class="badge" aria-hidden="true">5</span><span class="h-num">5. </span><span class="h-t">G26 例子</span></h2>
+<blockquote data-anchor-id="s5-note-1"><p>题目：G26 bottom_rail_screen_0000。输入结尾时屏风挡住物体。参考视频里屏风滑回右边，藏青球和黄色方块重新出现。</p></blockquote>
+<blockquote data-anchor-id="s5-note-2"><p>下表是我们自己的复算。只算了这一题。不是作者的代码。</p></blockquote>
+<div class="table-wrap wide stack xwide" data-anchor-id="s5-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead><tr><th class="k" scope="col">候选</th>
+<th scope="col">最后一帧</th>
+<th class="num" scope="col">MSE ×10⁻³ ↓</th>
+<th class="num" scope="col">PSNR ↑</th>
+<th class="num" scope="col">SSIM ↑</th>
+<th class="num" scope="col">末帧 MSE ×10⁻³ ↓</th></tr></thead>
+<tbody>
+<tr><td class="k" data-label="候选"><span class="cv">PWM-WROP</span></td>
+<td data-label="最后一帧"><span class="cv">球和方块回来了 → 对</span></td>
+<td class="num" data-label="MSE ×10⁻³ ↓"><span class="cv">0.42</span></td>
+<td class="num" data-label="PSNR ↑"><span class="cv">33.79</span></td>
+<td class="num" data-label="SSIM ↑"><span class="cv">0.970</span></td>
+<td class="num" data-label="末帧 MSE ×10⁻³ ↓"><span class="cv">0.81</span></td></tr>
+<tr><td class="k" data-label="候选"><span class="cv">Grok Imagine (extend)</span></td>
+<td data-label="最后一帧"><span class="cv">球和方块回来了 → 对</span></td>
+<td class="num" data-label="MSE ×10⁻³ ↓"><span class="cv">0.66</span></td>
+<td class="num" data-label="PSNR ↑"><span class="cv">31.83</span></td>
+<td class="num" data-label="SSIM ↑"><span class="cv">0.972</span></td>
+<td class="num" data-label="末帧 MSE ×10⁻³ ↓"><span class="cv">0.53</span></td></tr>
+<tr><td class="k" data-label="候选"><span class="cv">Gemini Omni Flash 1.1</span></td>
+<td data-label="最后一帧"><span class="cv">屏风一直挡着 → 错</span></td>
+<td class="num" data-label="MSE ×10⁻³ ↓"><span class="cv">3.84</span></td>
+<td class="num" data-label="PSNR ↑"><span class="cv">24.15</span></td>
+<td class="num" data-label="SSIM ↑"><span class="cv">0.928</span></td>
+<td class="num" data-label="末帧 MSE ×10⁻³ ↓"><span class="cv">5.09</span></td></tr>
+<tr><td class="k" data-label="候选"><span class="cv">基线：冻结最后一帧</span></td>
+<td data-label="最后一帧"><span class="cv">屏风一直挡着 → 错</span></td>
+<td class="num" data-label="MSE ×10⁻³ ↓"><span class="cv">1.90</span></td>
+<td class="num" data-label="PSNR ↑"><span class="cv">27.22</span></td>
+<td class="num" data-label="SSIM ↑"><span class="cv"><strong>0.961</strong></span></td>
+<td class="num" data-label="末帧 MSE ×10⁻³ ↓"><span class="cv">4.98</span></td></tr>
+<tr><td class="k" data-label="候选"><span class="cv">基线：复制输入视频</span></td>
+<td data-label="最后一帧"><span class="cv">不出现揭开 → 错</span></td>
+<td class="num" data-label="MSE ×10⁻³ ↓"><span class="cv">3.79</span></td>
+<td class="num" data-label="PSNR ↑"><span class="cv">24.21</span></td>
+<td class="num" data-label="SSIM ↑"><span class="cv">0.932</span></td>
+<td class="num" data-label="末帧 MSE ×10⁻³ ↓"><span class="cv">4.98</span></td></tr>
+</tbody>
+</table></div>
+<blockquote data-anchor-id="s5-note-3"><p>冻结最后一帧什么都没做。它的 SSIM 是 0.961。这高于表 3 里所有模型 300 题平均 SSIM 的最高值 0.942。只有一题，所以这是示例，不是全基准结论。</p></blockquote>
+<blockquote data-anchor-id="s5-note-4"><p>末帧 MSE 能分开对错。答对的在 0.53–0.81。答错的都约 5.0。论文没有列出这个指标。</p></blockquote>
+<figure class="fig" data-anchor-id="s5-fig-1"><a href="/wrop-metrics-g26-sheet.png" target="_blank" rel="noopener"><img src="/wrop-metrics-g26-sheet.png" alt="G26 帧对比：上排为输入末帧和参考视频；下排为 PWM-WROP、Gemini、Grok 的最后一帧" loading="lazy" decoding="async"></a><figcaption>G26 帧对比：上排为输入末帧和参考视频；下排为 PWM-WROP、Gemini、Grok 的最后一帧</figcaption></figure>
+</section>
+<section class="card" id="s6" data-section="s6" aria-labelledby="s6-h"><h2 id="s6-h"><span class="badge" aria-hidden="true">6</span><span class="h-num">6. </span><span class="h-t">主要问题</span></h2>
+<ol class="steps"><li><strong>人工协议写得不全。</strong> §4.4 没写评分员看了参考视频。评分说明、界面、截图都没公开。一次 A/B 点击同时判三条，恒存和贴合文字、画质分不开。142/197 个提示词已写出答案，所以「贴合文字」这一条部分在奖励照着文字演。</li><li><strong>Elo 的数据少，且未公开。</strong> 只有 361 次判断，每个模型约 51 次。用了哪些考题没写。300 题里多数可能没人评过。前四名置信区间重叠。原始判断、Elo 换算系数、拟合代码都没公开。</li><li><strong>自动指标能被钻空子。</strong> 冻结一帧就能拿高 SSIM。Reference-to-video 模型按自己的时间线重生成，再被硬拉到 60 帧比。对恒存更敏感的指标（末帧、时间差 L1、MAE）算了却没列表。</li></ol>
+<blockquote data-anchor-id="s6-note-1"><p>小的不一致：正文和表 2 对不上（Grok 区间 1368 对 1362.7；LTX-2.3 Extend 1452 对 1453.4；MAGI-1 24B 1240 对 1248.0；领先 224 对 222.5）；14 个模型只有 91 对，正文写 120 对；FID 分辨率前后说法不一。</p></blockquote>
+</section>
+<section class="card" id="s7" data-section="s7" aria-labelledby="s7-h"><h2 id="s7-h"><span class="badge" aria-hidden="true">7</span><span class="h-num">7. </span><span class="h-t">改进建议</span></h2>
+<ol class="steps"><li><strong>把协议写明。</strong> 写清评分员看到什么：输入 → 参考视频（标「正确结果」）→ 一个候选。公开评分说明和界面。</li><li><strong>每题问 3–5 个是/否问题。</strong> 问题从每题的预期结果标记生成。G26 的例子：屏风走后是不是 2 个物体？颜色不变吗？位置不变吗？有没有东西穿过屏风？有没有揭开？加「看不清」选项。让评分员忽略时间先后、机位和分辨率。</li><li><strong>加对照。</strong></li></ol>
+<div class="table-wrap" data-anchor-id="s7-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead><tr><th class="k" scope="col">对照</th>
+<th scope="col">预期</th></tr></thead>
+<tbody>
+<tr><td class="k" data-label="对照"><span class="cv">参考视频本身当候选</span></td>
+<td data-label="预期"><span class="cv">约 100% 通过</span></td></tr>
+<tr><td class="k" data-label="对照"><span class="cv">冻结最后一帧当候选</span></td>
+<td data-label="预期"><span class="cv">揭开类问题不通过</span></td></tr>
+<tr><td class="k" data-label="对照"><span class="cv">重复题</span></td>
+<td data-label="预期"><span class="cv">测前后一致</span></td></tr>
+<tr><td class="k" data-label="对照"><span class="cv">不给提示词的一组</span></td>
+<td data-label="预期"><span class="cv">测提示词当答案的影响</span></td></tr>
+</tbody>
+</table></div>
+<ol class="steps" start="4"><li><strong>按通过率计分。</strong> 先算每题，再按出题器平均，再按任务族平均。</li><li><strong>Elo 降为辅助。</strong> 两两比较只作「整体质量」参考。</li></ol>
+<p class="meta">详见英文完整版：<span class="unpub" title="未在本站发布">wrop-metrics.md</span></p>
+</section>
+    </article>
+
+    <nav class="more" aria-label="其他页面">
+      <ul><li><a class="more-card" href="/wrop-improvement-directions"><span class="more-k">另一篇</span><span class="more-t">WROP 后续改进方向</span></a></li><li><a class="more-card" href="/"><span class="more-k">首页</span><span class="more-t">全部页面</span></a></li></ul>
+    </nav>
+
+    <section class="comments" id="comments" aria-labelledby="comments-h">
+      <h2 id="comments-h">评论 <span class="count" id="list-count">0</span></h2>
+      <p class="hint">选中正文里的文字。点「评论」按钮。评论会贴在那段文字上。</p>
+      <p class="hint">无需登录。昵称可不填。</p>
+      <button type="button" class="btn ghost" id="page-comment">评论整篇</button>
+      <p class="empty" id="list-empty">还没有评论。</p>
+      <ol class="thread-list" id="thread-list"></ol>
+    </section>
+  </main>
+</div>
+
+<footer class="foot">
+  <p>来源：<code>wrop-metrics-zh.md</code>。更新于 2026-10-08。</p>
+  <p>托管于 Cloudflare。评论匿名存储。</p>
+</footer>
+
+<button type="button" class="sel-btn" id="sel-btn" hidden>评论</button>
+
+<div class="scrim" id="scrim" hidden></div>
+<aside class="panel" id="panel" role="dialog" aria-modal="true" aria-labelledby="panel-h" hidden>
+  <div class="panel-head">
+    <h2 id="panel-h">评论</h2>
+    <button type="button" class="icon-btn" id="panel-close" aria-label="关闭">×</button>
+  </div>
+  <div class="panel-body">
+    <blockquote class="panel-quote" id="panel-quote" hidden></blockquote>
+    <ol class="thread" id="panel-thread"></ol>
+    <form class="composer" id="composer" novalidate>
+      <label class="field">
+        <span>昵称（可不填）</span>
+        <input type="text" id="f-nick" maxlength="40" autocomplete="nickname" placeholder="匿名">
+      </label>
+      <label class="field">
+        <span id="f-body-label">评论</span>
+        <textarea id="f-body" maxlength="2000" rows="4" required placeholder="写下你的看法。"></textarea>
+      </label>
+      <div class="ts" id="ts-box"></div>
+      <div class="form-foot">
+        <span class="counter" id="f-count">0 / 2000</span>
+        <button type="submit" class="btn" id="f-submit">发布</button>
+      </div>
+      <p class="form-msg" id="f-msg" role="status" aria-live="polite"></p>
+    </form>
+  </div>
+</aside>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

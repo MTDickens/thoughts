@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{TITLE}} · thoughts</title>
-<meta name="description" content="WROP 基准的 7 个后续改进方向。可选中文字匿名评论。">
+<meta name="description" content="{{DESC}}">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#f7f6f2" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
@@ -15,17 +15,14 @@
 <body data-page="{{PAGE_ID}}">
 <a class="skip" href="#main">跳到正文</a>
 <div class="progress" aria-hidden="true"><span id="progress-bar"></span></div>
+{{NAV}}
 
 <header class="hero">
   <div class="hero-inner" data-section="intro" id="intro">
     <p class="eyebrow">thoughts.ycjian.com · 研究笔记</p>
     <h1>{{TITLE}}</h1>
     {{LEAD}}
-    <ul class="chips" aria-label="概要">
-      <li>7 个方向</li>
-      <li>依据作者已承认的问题</li>
-      <li>选中文字即可评论</li>
-    </ul>
+    <ul class="chips" aria-label="概要">{{CHIPS}}</ul>
   </div>
 </header>
 
@@ -41,6 +38,10 @@
 {{SECTIONS}}
     </article>
 
+    <nav class="more" aria-label="其他页面">
+      <ul>{{MORE}}<li><a class="more-card" href="/"><span class="more-k">首页</span><span class="more-t">全部页面</span></a></li></ul>
+    </nav>
+
     <section class="comments" id="comments" aria-labelledby="comments-h">
       <h2 id="comments-h">评论 <span class="count" id="list-count">0</span></h2>
       <p class="hint">选中正文里的文字。点「评论」按钮。评论会贴在那段文字上。</p>
@@ -53,7 +54,7 @@
 </div>
 
 <footer class="foot">
-  <p>来源：<code>wrop-improvement-directions.md</code>。更新于 2026-10-08。</p>
+  <p>来源：<code>{{SOURCE}}</code>。更新于 {{UPDATED}}。</p>
   <p>托管于 Cloudflare。评论匿名存储。</p>
 </footer>
 

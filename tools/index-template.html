@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>thoughts · 研究笔记</title>
+<meta name="description" content="研究笔记。可选中文字匿名评论。">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f7f6f2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body class="index">
+<a class="skip" href="#main">跳到正文</a>
+{{NAV}}
+<header class="hero">
+  <div class="hero-inner">
+    <p class="eyebrow">thoughts.ycjian.com · 研究笔记</p>
+    <h1>thoughts</h1>
+    <p class="lead">研究笔记。共 {{N}} 篇。每篇都能选中文字，匿名评论。</p>
+  </div>
+</header>
+<main id="main" class="idx">
+  <ul class="idx-list">
+{{CARDS}}
+  </ul>
+</main>
+<footer class="foot">
+  <p>更新于 {{UPDATED}}。托管于 Cloudflare。评论匿名存储。</p>
+</footer>
+</body>
+</html>

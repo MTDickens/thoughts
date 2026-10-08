@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WROP 后续改进方向 · thoughts</title>
+<meta name="description" content="WROP 基准的 7 个后续改进方向。可选中文字匿名评论。">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f7f6f2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css">
+<script src="/app.js" defer></script>
+</head>
+<body data-page="wrop-improvement-directions">
+<a class="skip" href="#main">跳到正文</a>
+<div class="progress" aria-hidden="true"><span id="progress-bar"></span></div>
+<nav class="topnav" aria-label="站点"><div class="topnav-inner"><a class="brand" href="/">thoughts</a><div class="topnav-links"><a href="/wrop-improvement-directions" aria-current="page" title="WROP 后续改进方向">改进方向</a><a href="/wrop-metrics-zh" title="WROP 评测指标：是什么、怎么算、哪里弱">评测指标</a></div></div></nav>
+
+<header class="hero">
+  <div class="hero-inner" data-section="intro" id="intro">
+    <p class="eyebrow">thoughts.ycjian.com · 研究笔记</p>
+    <h1>WROP 后续改进方向</h1>
+    <p class="lead">依据作者在 X 上已承认的问题，以及我们核实过的事实（含 Max 的惯性标准：继续滑走不算方向歧义）。</p>
+    <ul class="chips" aria-label="概要"><li>7 个方向</li><li>依据作者已承认的问题</li><li>选中文字即可评论</li></ul>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc" aria-label="目录">
+    <p class="toc-title">目录</p>
+    <ol><li><a href="#s1"><span class="toc-n">1</span><span class="toc-t">只测了分布内，没有测泛化</span></a></li><li><a href="#s2"><span class="toc-n">2</span><span class="toc-t">只有 Blender 仿真，没有真实视频</span></a></li><li><a href="#s3"><span class="toc-n">3</span><span class="toc-t">只测行为，不看内部表示</span></a></li><li><a href="#s4"><span class="toc-n">4</span><span class="toc-t">没有镜头难度</span></a></li><li><a href="#s5"><span class="toc-n">5</span><span class="toc-t">没有真实感的大遮挡</span></a></li><li><a href="#s6"><span class="toc-n">6</span><span class="toc-t">全是刚体关键帧，没有物理引擎</span></a></li><li><a href="#s7"><span class="toc-n">7</span><span class="toc-t">Prompt 把恒存答案写进去了</span></a></li></ol>
+    <a class="toc-comments" href="#comments">全部评论 <span class="count" id="toc-count">0</span></a>
+  </nav>
+
+  <main id="main">
+    <article class="doc">
+<section class="card" id="s1" data-section="s1" aria-labelledby="s1-h"><h2 id="s1-h"><span class="badge" aria-hidden="true">1</span><span class="h-num">1. </span><span class="h-t">只测了分布内，没有测泛化</span></h2>
+<blockquote data-anchor-id="s1-note-1"><p>训练和考试用同一批出题器。共 150 个出题器，分 6 个任务族。考试共 300 题。每个出题器出 2 题。每道考题都是训练样本 0 或 1 的重渲染。考题用同一脚本。考题种子等于训练种子的后 5 位。考题只换颜色、材质和光照。所以分数只说明模型会做「换皮」的同类题。</p></blockquote>
+<blockquote data-anchor-id="s1-note-2"><p>没有考题来自训练外的出题器。没有验证集。</p></blockquote>
+<blockquote data-anchor-id="s1-note-3"><p>泄漏风险（未知）：模型实际用一版「更早的渲染」训练。这版没有公开。若它也用 5 位种子，考题可能和训练样本逐像素相同。公开文件无法核实这一点。</p></blockquote>
+<blockquote data-anchor-id="s1-note-4"><p>下一版应做两种留出。第一种：按出题器留出。第二种：按任务族整类留出。第二种更难。两种都只需用现有出题器的子集重训。两种都不需要新造出题器。</p></blockquote>
+<div class="table-wrap" data-anchor-id="s1-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead><tr><th class="k" scope="col">项</th>
+<th scope="col">数</th></tr></thead>
+<tbody>
+<tr><td class="k" data-label="项"><span class="cv">出题器</span></td>
+<td data-label="数"><span class="cv">150</span></td></tr>
+<tr><td class="k" data-label="项"><span class="cv">任务族</span></td>
+<td data-label="数"><span class="cv">6</span></td></tr>
+<tr><td class="k" data-label="项"><span class="cv">训练样本</span></td>
+<td data-label="数"><span class="cv">150 万（每个出题器 1 万）</span></td></tr>
+<tr><td class="k" data-label="项"><span class="cv">验证集</span></td>
+<td data-label="数"><span class="cv">无</span></td></tr>
+<tr><td class="k" data-label="项"><span class="cv">考题</span></td>
+<td data-label="数"><span class="cv">300（150 × 2）</span></td></tr>
+<tr><td class="k" data-label="项"><span class="cv">考题来自训练外出题器</span></td>
+<td data-label="数"><span class="cv">0</span></td></tr>
+<tr><td class="k" data-label="项"><span class="cv">作者计划</span></td>
+<td data-label="数"><span class="cv">generator-disjoint + 整类任务留出</span></td></tr>
+</tbody>
+</table></div>
+<div class="table-wrap wide" data-anchor-id="s1-table-2" tabindex="0" role="region" aria-label="表格"><table>
+<thead><tr><th class="k" scope="col">切分</th>
+<th scope="col">例子</th>
+<th scope="col">训练中看不到</th></tr></thead>
+<tbody>
+<tr><td class="k" data-label="切分"><span class="cv">分布内（现状）</span></td>
+<td data-label="例子"><span class="cv">G26 bottom_rail_screen。训练样本 0：藏青球 + 橙色方块。考题 0：藏青球 + 黄色方块。滑轨屏、路径和结果都相同。</span></td>
+<td data-label="训练中看不到"><span class="cv">无</span></td></tr>
+<tr><td class="k" data-label="切分"><span class="cv">跨出题器</span></td>
+<td data-label="例子"><span class="cv">静态遮挡族（29 个）留出 G81 rolling_shutter。训练仍有滑轨屏、幕布和百叶。</span></td>
+<td data-label="训练中看不到"><span class="cv">从上方降下的卷帘</span></td></tr>
+<tr><td class="k" data-label="切分"><span class="cv">跨任务</span></td>
+<td data-label="例子"><span class="cv">留出全部 35 个容器恒存出题器。更严：留出两个遮挡族，共 55 个。</span></td>
+<td data-label="训练中看不到"><span class="cv">物体随容器移动或交换（杯子戏法、推车互换、转盘、抽屉）</span></td></tr>
+</tbody>
+</table></div>
+<p class="meta">链接：<a href="https://x.com/DengHokin/status/2103677469773676631" target="_blank" rel="noopener noreferrer">同意帖</a> · 详见：<code>generalization-splits.md</code></p>
+</section>
+<section class="card" id="s2" data-section="s2" aria-labelledby="s2-h"><h2 id="s2-h"><span class="badge" aria-hidden="true">2</span><span class="h-num">2. </span><span class="h-t">只有 Blender 仿真，没有真实视频</span></h2>
+<blockquote data-anchor-id="s2-note-1"><p>考试素材全是仿真。仿真里考得好，不等于真实摄像头视频里也行。作者说真实视频才是真正的检验，还没做。好解决：多造其他环境。若先不碰这一条，其余几条仍可在 Blender 里推进。</p></blockquote>
+<div class="table-wrap" data-anchor-id="s2-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead><tr><th class="k" scope="col">项</th>
+<th scope="col">数</th></tr></thead>
+<tbody>
+<tr><td class="k" data-label="项"><span class="cv">Blender 脚本</span></td>
+<td data-label="数"><span class="cv">197</span></td></tr>
+<tr><td class="k" data-label="项"><span class="cv">MuJoCo / 真实视频考试</span></td>
+<td data-label="数"><span class="cv">0</span></td></tr>
+</tbody>
+</table></div>
+<p class="meta">链接：<a href="https://x.com/DengHokin/status/2103717654783737899" target="_blank" rel="noopener noreferrer">承认帖</a></p>
+</section>
+<section class="card" id="s3" data-section="s3" aria-labelledby="s3-h"><h2 id="s3-h"><span class="badge" aria-hidden="true">3</span><span class="h-num">3. </span><span class="h-t">只测行为，不看内部表示</span></h2>
+<blockquote data-anchor-id="s3-note-1"><p>只看画面结果对不对。没有打开模型内部，看遮挡时有没有「记住」物体。所以只能说表现得像会，不能说内部真存了物体。好解决：去测 latent。</p></blockquote>
+<div class="table-wrap" data-anchor-id="s3-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead><tr><th class="k" scope="col">项</th>
+<th scope="col">状态</th></tr></thead>
+<tbody>
+<tr><td class="k" data-label="项"><span class="cv">行为考试</span></td>
+<td data-label="状态"><span class="cv">有</span></td></tr>
+<tr><td class="k" data-label="项"><span class="cv">Latent / 内部探测</span></td>
+<td data-label="状态"><span class="cv">无（作者说下一步可做）</span></td></tr>
+</tbody>
+</table></div>
+<p class="meta">链接：<a href="https://x.com/DengHokin/status/2103717763344973914" target="_blank" rel="noopener noreferrer">承认帖</a></p>
+</section>
+<section class="card" id="s4" data-section="s4" aria-labelledby="s4-h"><h2 id="s4-h"><span class="badge" aria-hidden="true">4</span><span class="h-num">4. </span><span class="h-t">没有镜头难度</span></h2>
+<blockquote data-anchor-id="s4-note-1"><p>每条都是一镜到底，相机在一条视频里完全不动。硬切没有，连续运镜也没有。作者承认切镜是更难的一半，更像要新造一批任务，不是只在老场景上拧参数。造法：优先硬切，再加一镜内连续运镜。</p></blockquote>
+<div class="table-wrap" data-anchor-id="s4-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead><tr><th class="k" scope="col">项</th>
+<th scope="col">数</th></tr></thead>
+<tbody>
+<tr><td class="k" data-label="项"><span class="cv">脚本数</span></td>
+<td data-label="数"><span class="cv">约 197</span></td></tr>
+<tr><td class="k" data-label="项"><span class="cv">一镜内相机关键帧</span></td>
+<td data-label="数"><span class="cv">0</span></td></tr>
+<tr><td class="k" data-label="项"><span class="cv">硬切</span></td>
+<td data-label="数"><span class="cv">0</span></td></tr>
+<tr><td class="k" data-label="项"><span class="cv">样本间固定机位变化</span></td>
+<td data-label="数"><span class="cv">有（左/中/右）</span></td></tr>
+</tbody>
+</table></div>
+<p class="meta">链接：<a href="https://x.com/DengHokin/status/2103717848774234200" target="_blank" rel="noopener noreferrer">切镜帖</a></p>
+</section>
+<section class="card" id="s5" data-section="s5" aria-labelledby="s5-h"><h2 id="s5-h"><span class="badge" aria-hidden="true">5</span><span class="h-num">5. </span><span class="h-t">没有真实感的大遮挡</span></h2>
+<blockquote data-anchor-id="s5-note-1"><p>仿真里已有会动的硬板遮挡。缺的是真实感场景里那种干净大遮挡（如车开过去挡住）。这和「必须用真实视频」不是一回事：Blender 里也能造大遮挡物扫过；真实视频是更强的最终检验，不是唯一造法。</p></blockquote>
+<div class="table-wrap" data-anchor-id="s5-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead><tr><th class="k" scope="col">项</th>
+<th scope="col">状态</th></tr></thead>
+<tbody>
+<tr><td class="k" data-label="项"><span class="cv">现有遮挡</span></td>
+<td data-label="状态"><span class="cv">屏风/帘/百叶等硬板关键帧（如 G19/G22/G47/G53/G79/G81/G82）</span></td></tr>
+<tr><td class="k" data-label="项"><span class="cv">车挡一类真实感大遮挡</span></td>
+<td data-label="状态"><span class="cv">无；作者称 working towards</span></td></tr>
+</tbody>
+</table></div>
+<p class="meta">链接：<a href="https://x.com/ichelpark/status/2106956666365501517" target="_blank" rel="noopener noreferrer">原帖</a> · <a href="https://x.com/DengHokin/status/2106973087522865514" target="_blank" rel="noopener noreferrer">作者回复</a></p>
+</section>
+<section class="card" id="s6" data-section="s6" aria-labelledby="s6-h"><h2 id="s6-h"><span class="badge" aria-hidden="true">6</span><span class="h-num">6. </span><span class="h-t">全是刚体关键帧，没有物理引擎</span></h2>
+<blockquote data-anchor-id="s6-note-1"><p>没有 MuJoCo，没有柔体、布料、流体。运动是人工关键帧，不是物理算出来的。</p></blockquote>
+<div class="table-wrap" data-anchor-id="s6-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead><tr><th class="k" scope="col">项</th>
+<th scope="col">数</th></tr></thead>
+<tbody>
+<tr><td class="k" data-label="项"><span class="cv">外部物理引擎（MuJoCo 等）</span></td>
+<td data-label="数"><span class="cv">0</span></td></tr>
+<tr><td class="k" data-label="项"><span class="cv">柔体 / 布料 / 流体</span></td>
+<td data-label="数"><span class="cv">0</span></td></tr>
+<tr><td class="k" data-label="项"><span class="cv">例外</span></td>
+<td data-label="数"><span class="cv">G73：Blender 自带刚体再烤关键帧</span></td></tr>
+</tbody>
+</table></div>
+</section>
+<section class="card" id="s7" data-section="s7" aria-labelledby="s7-h"><h2 id="s7-h"><span class="badge" aria-hidden="true">7</span><span class="h-num">7. </span><span class="h-t">Prompt 把恒存答案写进去了</span></h2>
+<blockquote data-anchor-id="s7-note-1"><p>按正常人常识，「遮挡后物体应回来」不该写进 prompt。遮挡物继续滑走按惯性默认即可，不算欠写。主要问题是 OVER（over-guidance）。造法上：无 LLM 管线说明，正文写死在 <code>CASE["prompt"]</code>，渲染时只换颜色词并加前缀；Hugging Face 上已是成品完整 prompt。</p></blockquote>
+<div class="table-wrap wide" data-anchor-id="s7-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead><tr><th class="k" scope="col">桶</th>
+<th class="num" scope="col">n</th>
+<th class="num" scope="col">占比</th></tr></thead>
+<tbody>
+<tr><td class="k" data-label="桶"><span class="cv">OK</span></td>
+<td class="num" data-label="n"><span class="cv">55</span></td>
+<td class="num" data-label="占比"><span class="cv">28%</span></td></tr>
+<tr><td class="k" data-label="桶"><span class="cv">OVER</span></td>
+<td class="num" data-label="n"><span class="cv">142</span></td>
+<td class="num" data-label="占比"><span class="cv">72%</span></td></tr>
+<tr><td class="k" data-label="桶"><span class="cv">UNDER</span></td>
+<td class="num" data-label="n"><span class="cv">0</span></td>
+<td class="num" data-label="占比"><span class="cv">0%</span></td></tr>
+<tr><td class="k" data-label="桶"><span class="cv">MIXED</span></td>
+<td class="num" data-label="n"><span class="cv">0</span></td>
+<td class="num" data-label="占比"><span class="cv">0%</span></td></tr>
+<tr class="total"><td class="k" data-label="桶"><span class="cv">合计</span></td>
+<td class="num" data-label="n"><span class="cv">197</span></td>
+<td class="num" data-label="占比"><span class="cv">100%</span></td></tr>
+</tbody>
+</table></div>
+<div class="table-wrap" data-anchor-id="s7-table-2" tabindex="0" role="region" aria-label="表格"><table>
+<thead><tr><th class="k" scope="col">其他</th>
+<th scope="col">数</th></tr></thead>
+<tbody>
+<tr><td class="k" data-label="其他"><span class="cv">OP-2 恒存说教</span></td>
+<td data-label="数"><span class="cv">约 43/44（97.7%）；唯一未讲：G24</span></td></tr>
+<tr><td class="k" data-label="其他"><span class="cv">避免 over-guidance 的作者规则</span></td>
+<td data-label="数"><span class="cv">无</span></td></tr>
+</tbody>
+</table></div>
+<p class="meta">详见：<code>prompt-ambiguity-197.md</code>、<code>prompt-authorship.md</code></p>
+</section>
+    </article>
+
+    <nav class="more" aria-label="其他页面">
+      <ul><li><a class="more-card" href="/wrop-metrics-zh"><span class="more-k">另一篇</span><span class="more-t">WROP 评测指标：是什么、怎么算、哪里弱</span></a></li><li><a class="more-card" href="/"><span class="more-k">首页</span><span class="more-t">全部页面</span></a></li></ul>
+    </nav>
+
+    <section class="comments" id="comments" aria-labelledby="comments-h">
+      <h2 id="comments-h">评论 <span class="count" id="list-count">0</span></h2>
+      <p class="hint">选中正文里的文字。点「评论」按钮。评论会贴在那段文字上。</p>
+      <p class="hint">无需登录。昵称可不填。</p>
+      <button type="button" class="btn ghost" id="page-comment">评论整篇</button>
+      <p class="empty" id="list-empty">还没有评论。</p>
+      <ol class="thread-list" id="thread-list"></ol>
+    </section>
+  </main>
+</div>
+
+<footer class="foot">
+  <p>来源：<code>wrop-improvement-directions.md</code>。更新于 2026-10-08。</p>
+  <p>托管于 Cloudflare。评论匿名存储。</p>
+</footer>
+
+<button type="button" class="sel-btn" id="sel-btn" hidden>评论</button>
+
+<div class="scrim" id="scrim" hidden></div>
+<aside class="panel" id="panel" role="dialog" aria-modal="true" aria-labelledby="panel-h" hidden>
+  <div class="panel-head">
+    <h2 id="panel-h">评论</h2>
+    <button type="button" class="icon-btn" id="panel-close" aria-label="关闭">×</button>
+  </div>
+  <div class="panel-body">
+    <blockquote class="panel-quote" id="panel-quote" hidden></blockquote>
+    <ol class="thread" id="panel-thread"></ol>
+    <form class="composer" id="composer" novalidate>
+      <label class="field">
+        <span>昵称（可不填）</span>
+        <input type="text" id="f-nick" maxlength="40" autocomplete="nickname" placeholder="匿名">
+      </label>
+      <label class="field">
+        <span id="f-body-label">评论</span>
+        <textarea id="f-body" maxlength="2000" rows="4" required placeholder="写下你的看法。"></textarea>
+      </label>
+      <div class="ts" id="ts-box"></div>
+      <div class="form-foot">
+        <span class="counter" id="f-count">0 / 2000</span>
+        <button type="submit" class="btn" id="f-submit">发布</button>
+      </div>
+      <p class="form-msg" id="f-msg" role="status" aria-live="polite"></p>
+    </form>
+  </div>
+</aside>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

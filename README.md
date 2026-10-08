@@ -1,14 +1,24 @@
 # thoughts
 
-`thoughts.ycjian.com` 的源码。现在只放一篇：**WROP 后续改进方向**。
+`thoughts.ycjian.com` 的源码。现在放两篇：
+
+| 网址 | 原文 |
+|---|---|
+| `/` | 首页，列出全部页面 |
+| `/wrop-improvement-directions` | `content/wrop-improvement-directions.md` |
+| `/wrop-metrics-zh` | `content/wrop-metrics-zh.md`（图片 `content/assets/wrop-metrics-g26-sheet.png`） |
+
+加新页面：把 `.md` 放进 `content/`，在 `tools/build.py` 的 `PAGES` 里加一项。图片放 `content/assets/`，并加进 `ASSETS`。
 
 ## 结构
 
 | 路径 | 作用 |
 |---|---|
-| `content/wrop-improvement-directions.md` | 原文。改内容只改这里。 |
-| `tools/template.html` | 页面骨架。 |
-| `tools/build.py` | 把原文生成 `public/index.html`，再打包成 `src/site.gen.js`。 |
+| `content/*.md` | 原文。改内容只改这里。 |
+| `content/assets/` | 页面引用的图片。 |
+| `tools/template.html` | 文章页骨架。 |
+| `tools/index-template.html` | 首页骨架。 |
+| `tools/build.py` | 生成 `public/<slug>.html` 和 `public/index.html`，再打包成 `src/site.gen.js`。 |
 | `public/` | 页面、样式、脚本、图标。 |
 | `src/worker.js` | Cloudflare Worker。出页面，也出评论接口。 |
 | `src/site.gen.js` | 生成文件。不要手改。 |
@@ -20,7 +30,7 @@
 - 读者选中文字。点「评论」。评论贴在那段文字上。
 - 匿名。昵称可不填。
 - 防刷：Cloudflare Turnstile（免费）+ 每 IP 限速（10 分钟 5 条，1 天 40 条）+ 全站每小时 200 条。
-- 存储：D1 `thoughts-comments`，表 `comments`。
+- 存储：D1 `thoughts-comments`，表 `comments`。每条评论带 `page`（页面 slug），各页评论互不混。
 - 锚点类型 `anchor_type`：`text`（文字）、`element`（图片、表格、可视化组件，用 `data-anchor-id`）、`media_time`（视频时间点，用 `media_t` 秒）。
 
 ### 删除评论
