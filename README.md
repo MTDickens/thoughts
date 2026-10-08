@@ -49,6 +49,18 @@ npx wrangler dev
 
 ## 部署
 
+### 自动部署（Cloudflare Workers Builds）
+
+- 推送到 `main`，Cloudflare 自动构建并部署 Worker `thoughts`。
+- 构建命令：`python3 tools/build.py`。部署命令：`npx wrangler deploy`。根目录：`/`。
+- 构建日志：Cloudflare 控制台 → Workers & Pages → `thoughts` → Deployments。
+- 部署不会删密钥。自定义域和 D1 绑定来自 `wrangler.toml`。
+- wrangler 固定为 4.30.0（`package.json`）。它在 Node 18–24 上都能跑。
+
+改内容的流程：改 `content/` 或 `public/` → 跑 `python3 tools/build.py` → 提交 → `git push`。
+
+### 手动部署
+
 ```bash
 python3 tools/build.py
 npx wrangler deploy

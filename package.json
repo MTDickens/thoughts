@@ -7,7 +7,7 @@
     "deploy": "python3 tools/build.py && wrangler deploy"
   },
   "devDependencies": {
-    "wrangler": "^4.30.0"
+    "wrangler": "4.30.0"
   },
   "type": "module"
 }
