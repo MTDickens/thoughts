@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MiniMax H3 在 NVIDIA 上能跑多快：对 WROP 重跑的影响 · thoughts</title>
+<meta name="description" content="查 NVIDIA Sol-H3 等 MiniMax H3 加速方案，分清质量安全和质量未验证两类，并按质量安全的最快跑法重算 300 道 WROP 考题的时间和费用。">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f7f6f2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css">
+<script src="/app.js" defer></script>
+</head>
+<body data-page="wrop-h3-nvidia-speed">
+<a class="skip" href="#main">跳到正文</a>
+<div class="progress" aria-hidden="true"><span id="progress-bar"></span></div>
+<nav class="topnav" aria-label="站点"><div class="topnav-inner"><a class="brand" href="/">thoughts</a><div class="topnav-links"><a href="/wrop-improvement-directions" title="WROP 后续改进方向">改进方向</a><a href="/wrop-metrics-zh" title="WROP 评测指标：是什么、怎么算、哪里弱">评测指标</a><a href="/wrop-rerun-cost" title="WROP 改 prompt 后重跑：时间和算力估算">重跑成本</a><a href="/wrop-h3-nvidia-speed" aria-current="page" title="MiniMax H3 在 NVIDIA 上能跑多快：对 WROP 重跑的影响">H3 加速</a></div></div></nav>
+
+<header class="hero">
+  <div class="hero-inner" data-section="intro" id="intro">
+    <p class="eyebrow">thoughts.ycjian.com · 研究笔记</p>
+    <h1>MiniMax H3 在 NVIDIA 上能跑多快：对 WROP 重跑的影响</h1>
+    <p class="lead">日期：2026-10-09（新加坡时间）。本文补充<a href="/wrop-rerun-cost">重跑成本估算</a>。所有“估算”都是推算，不是实测。</p>
+    <ul class="chips" aria-label="概要"><li>Sol-H3</li><li>8×B300</li><li>质量安全中间值约 $100</li><li>估算非实测</li><li>选中文字即可评论</li></ul>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc" aria-label="目录">
+    <p class="toc-title">目录</p>
+    <ol><li><a href="#s0"><span class="toc-n">0</span><span class="toc-t">结论</span></a></li><li><a href="#s1"><span class="toc-n">1</span><span class="toc-t">质量安全的标准</span></a></li><li><a href="#s2"><span class="toc-n">2</span><span class="toc-t">所有加速路径一览</span></a></li><li><a href="#s3"><span class="toc-n">3</span><span class="toc-t">每道题要多久（质量安全）</span></a></li><li><a href="#s4"><span class="toc-n">4</span><span class="toc-t">质量未验证 / 激进加速（只供参考，不用于成本中间值）</span></a></li><li><a href="#s5"><span class="toc-n">5</span><span class="toc-t">哪条路适合 WROP</span></a></li><li><a href="#s6"><span class="toc-n">6</span><span class="toc-t">300 道题：新估算</span></a></li><li><a href="#s7"><span class="toc-n">7</span><span class="toc-t">还没确定的事</span></a></li><li><a href="#sources"><span class="toc-n">·</span><span class="toc-t">来源</span></a></li></ol>
+    <a class="toc-comments" href="#comments">全部评论 <span class="count" id="toc-count">0</span></a>
+  </nav>
+
+  <main id="main">
+    <article class="doc">
+<section class="card" id="s0" data-section="s0" aria-labelledby="s0-h"><h2 id="s0-h"><span class="badge" aria-hidden="true">0</span><span class="h-num">0. </span><span class="h-t">结论</span></h2>
+<ul>
+<li><strong>你记得的 NVIDIA 方案是 Sol-H3。</strong> 作者是 NVIDIA Research（Efficient AI 团队和新加坡实验室）。页面：<a href="https://nvlabs.github.io/Sana/Sol-Engine/Sol-H3/" target="_blank" rel="noopener noreferrer">https://nvlabs.github.io/Sana/Sol-Engine/Sol-H3/</a>。它在一台 8×B300 上 <strong>1.653 秒</strong>生成 5 秒视频，比 50 步原版（18.25 秒）快 11 倍。据 RuntimeWire 报道，MiniMax 官方在 2026-09-07 转发过（未直接核实原帖）。</li>
+<li><strong>不改输出的加速，基本已经用完了。</strong> SGLang 的无损路径（BF16，只做算子融合）在 8×B300 上已经是约 19 秒/段（T2VA）。NVIDIA 自己的无损融合也只到 18.25 秒。没有一种公开方法能在“输出不变”的前提下再快 2 倍以上。</li>
+<li><strong>带视频参考会明显变慢。</strong> 在 8×H200 上，带视频参考的 Ref2VA 比 T2VA 慢 3.4–3.6 倍。WROP 的参考视频只有 2.5 秒，按序列长度推算大约慢 2 倍。</li>
+</ul>
+<aside class="callout callout-tip" role="note" id="s0-tip-9591ed" data-anchor-id="s0-tip-9591ed"><p class="callout-title">推荐跑法：8 个单卡副本，无损 BF16</p><p>每张 B300 各跑一份完整的 H3 Ref2VA 模型（SGLang <code>quality: &quot;lossless&quot;</code>，BF16，50 步，稠密注意力），一共 8 份同时跑。这样不改模型输出，吞吐也最高。</p>
+<p><strong>新的中间估算（只用质量安全的方案）：每段约 33 秒，300 道约 3.2 小时，约 $100（约 ¥730）。</strong> 以前的中间值是约 $170。保守估算约 7 小时、约 $220。</p>
+</aside>
+<aside class="callout callout-warning" role="note" id="s0-warning-eaa857" data-anchor-id="s0-warning-eaa857"><p class="callout-title">Sol-H3：质量未验证，不进推荐报价</p><p><strong>Sol-H3 不能用于 WROP 评测。</strong> 它的快主要来自三件事：4 步蒸馏（FastH3）、稀疏注意力、INT8/FP8 传输。三件事都会改变模型输出。它的公开测速也只测了文生视频（T2VA），没有测带参考视频的模式。所以它放在第 4 节“质量未验证”。</p>
+</aside>
+<aside class="callout callout-note" role="note" id="s0-note-174669" data-anchor-id="s0-note-174669"><p class="callout-title">更正：之前的 27–29 秒是文生视频，不是参考视频</p><p><strong>之前引用的 27–29 秒不是带参考视频的数字。</strong> SGLang 的 8×B300 测试脚本对 12 个配置都发送 <code>&quot;task&quot;:&quot;t2va&quot;,&quot;conditions&quot;:[]</code>，也就是没有参考视频。Ref2VA 那两行只是“用 Ref2VA 权重跑文生视频”。</p>
+</aside>
+</section>
+<section class="card" id="s1" data-section="s1" aria-labelledby="s1-h"><h2 id="s1-h"><span class="badge" aria-hidden="true">1</span><span class="h-num">1. </span><span class="h-t">质量安全的标准</span></h2>
+<p data-anchor-id="s1-p-0937c1">只有满足下面任一条，才算“质量安全”：</p>
+<ol class="steps">
+<li>输出和参考实现逐位相同（bit-exact）。</li>
+<li>只有舍入级别的差别（例如算子融合、换注意力内核、改并行方式）。</li>
+<li>有公开的对比数据，证明和 BF16 原版几乎一样。</li>
+</ol>
+<p data-anchor-id="s1-p-2455f5">目前没有一条近似加速满足第 3 条。原因是：公开的对比数据都显示 SSIM 只有 0.93–0.97，或 LPIPS 在 0.1–0.3。对 WROP 这种看物体位置和出现时间的评测，这个差别太大。</p>
+</section>
+<section class="card" id="s2" data-section="s2" aria-labelledby="s2-h"><h2 id="s2-h"><span class="badge" aria-hidden="true">2</span><span class="h-num">2. </span><span class="h-t">所有加速路径一览</span></h2>
+<div class="table-wrap wide stack xwide" data-anchor-id="s2-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">路径</th>
+<th scope="col">谁做的</th>
+<th scope="col">类型</th>
+<th scope="col">公开测速</th>
+<th scope="col">质量证据</th>
+<th scope="col">分类</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="路径"><span class="cv">SGLang <code>quality: &quot;lossless&quot;</code>（默认）</span></td>
+<td data-label="谁做的"><span class="cv">SGLang / MiniMax 官方文档</span></td>
+<td data-label="类型"><span class="cv">只融合算子</span></td>
+<td data-label="公开测速"><span class="cv">8×B300 T2VA 19.04 秒</span></td>
+<td data-label="质量证据"><span class="cv">去噪路径和 exact 相同；只有 VAE 解码有舍入差别</span></td>
+<td data-label="分类"><span class="cv"><strong>质量安全</strong></span></td>
+</tr>
+<tr><td class="k" data-label="路径"><span class="cv">SGLang <code>quality: &quot;exact&quot;</code></span></td>
+<td data-label="谁做的"><span class="cv">SGLang</span></td>
+<td data-label="类型"><span class="cv">参考实现</span></td>
+<td data-label="公开测速"><span class="cv">与 lossless 接近（4×H200 上 75.10 秒）</span></td>
+<td data-label="质量证据"><span class="cv">逐位相同</span></td>
+<td data-label="分类"><span class="cv"><strong>质量安全</strong></span></td>
+</tr>
+<tr><td class="k" data-label="路径"><span class="cv">Sol-Engine 无损部分（算子融合 + 图捕获）</span></td>
+<td data-label="谁做的"><span class="cv">NVIDIA SANA 团队</span></td>
+<td data-label="类型"><span class="cv">只融合算子</span></td>
+<td data-label="公开测速"><span class="cv">8×GB200：27.2 → 19.5 秒（比 Diffusers 快 1.39 倍，和 SGLang 的 19.3 秒差不多）</span></td>
+<td data-label="质量证据"><span class="cv">写明“lossless”</span></td>
+<td data-label="分类"><span class="cv"><strong>质量安全</strong>（但比 SGLang 没快）</span></td>
+</tr>
+<tr><td class="k" data-label="路径"><span class="cv">Sol-H3 的 “Base H3 Dense 50 步”</span></td>
+<td data-label="谁做的"><span class="cv">NVIDIA</span></td>
+<td data-label="类型"><span class="cv">稠密注意力 + 融合</span></td>
+<td data-label="公开测速"><span class="cv">8×B300 T2VA 18.25 秒；4×B300 35.3 秒；1×B300 129.9 秒</span></td>
+<td data-label="质量证据"><span class="cv">稠密、50 步，未说明是否逐位相同</span></td>
+<td data-label="分类"><span class="cv"><strong>质量安全</strong>（推断）</span></td>
+</tr>
+<tr><td class="k" data-label="路径"><span class="cv">多副本并行（8 个单卡副本）</span></td>
+<td data-label="谁做的"><span class="cv">部署方式</span></td>
+<td data-label="类型"><span class="cv">不改模型</span></td>
+<td data-label="公开测速"><span class="cv">1×B300 129.9 秒 ÷ 8 ≈ 16.2 秒/段，比 8 卡一起跑多出约 12% 吞吐</span></td>
+<td data-label="质量证据"><span class="cv">同一模型，只有舍入差别</span></td>
+<td data-label="分类"><span class="cv"><strong>质量安全</strong></span></td>
+</tr>
+<tr><td class="k" data-label="路径"><span class="cv">跨节点 Ring 并行</span></td>
+<td data-label="谁做的"><span class="cv">SGLang</span></td>
+<td data-label="类型"><span class="cv">并行方式</span></td>
+<td data-label="公开测速"><span class="cv">8×H200 → 2×8×H200：V2V 去噪快 47%</span></td>
+<td data-label="质量证据"><span class="cv">结果确定，但不和单节点逐位相同</span></td>
+<td data-label="分类"><span class="cv">质量安全；但只有一台机器，用不上</span></td>
+</tr>
+<tr><td class="k" data-label="路径"><span class="cv">NVIDIA TensorRT-Model-Connect（H3 原生 TensorRT）</span></td>
+<td data-label="谁做的"><span class="cv">NVIDIA</span></td>
+<td data-label="类型"><span class="cv">编译引擎</span></td>
+<td data-label="公开测速"><span class="cv"><strong>没有公开测速</strong></span></td>
+<td data-label="质量证据"><span class="cv">PR #1034 写明“真实权重的画面/音频对齐测试没有跑”</span></td>
+<td data-label="分类"><span class="cv">未成熟，不可用</span></td>
+</tr>
+<tr><td class="k" data-label="路径"><span class="cv">NVIDIA Dynamo / TensorRT-LLM / NIM</span></td>
+<td data-label="谁做的"><span class="cv">NVIDIA</span></td>
+<td data-label="类型"><span class="cv">—</span></td>
+<td data-label="公开测速"><span class="cv">只支持 MiniMax <strong>M3</strong>（语言模型），不支持 H3</span></td>
+<td data-label="质量证据"><span class="cv">—</span></td>
+<td data-label="分类"><span class="cv">不适用</span></td>
+</tr>
+</tbody>
+</table></div>
+</section>
+<section class="card" id="s3" data-section="s3" aria-labelledby="s3-h"><h2 id="s3-h"><span class="badge" aria-hidden="true">3</span><span class="h-num">3. </span><span class="h-t">每道题要多久（质量安全）</span></h2>
+<p data-anchor-id="s3-p-33b652"><strong>基准：T2VA，1344×768，124 帧，50 步，BF16 无损</strong></p>
+<div class="table-wrap wide" data-anchor-id="s3-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">硬件</th>
+<th scope="col">时间</th>
+<th scope="col">来源</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="硬件"><span class="cv">8×B300（Ulysses 8）</span></td>
+<td data-label="时间"><span class="cv">18.25 秒（NVIDIA）/ 19.04 秒（SGLang）</span></td>
+<td data-label="来源"><span class="cv">Sol-H3 页面；SGLang cookbook</span></td>
+</tr>
+<tr><td class="k" data-label="硬件"><span class="cv">4×B300</span></td>
+<td data-label="时间"><span class="cv">35.33 秒</span></td>
+<td data-label="来源"><span class="cv">Sol-H3 页面</span></td>
+</tr>
+<tr><td class="k" data-label="硬件"><span class="cv">1×B300</span></td>
+<td data-label="时间"><span class="cv">129.90 秒</span></td>
+<td data-label="来源"><span class="cv">Sol-H3 页面</span></td>
+</tr>
+<tr><td class="k" data-label="硬件"><span class="cv">8×H200</span></td>
+<td data-label="时间"><span class="cv">37.6 秒</span></td>
+<td data-label="来源"><span class="cv">SGLang PR #35850</span></td>
+</tr>
+</tbody>
+</table></div>
+<p data-anchor-id="s3-p-5bd74b">注意：SGLang PR #34841 在 8×B300 上测到的无损值是 24.50 秒，比 cookbook 的 19.04 秒慢。不同版本差约 25%。</p>
+<p data-anchor-id="s3-p-9f76b0"><strong>参考视频带来的额外时间</strong></p>
+<div class="table-wrap wide stack" data-anchor-id="s3-table-2" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">证据</th>
+<th scope="col">T2VA</th>
+<th scope="col">带视频参考</th>
+<th scope="col">倍数</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="证据"><span class="cv">SGLang PR #35850，8×H200，整段时间</span></td>
+<td data-label="T2VA"><span class="cv">37.55 秒</span></td>
+<td data-label="带视频参考"><span class="cv">133.51 秒</span></td>
+<td data-label="倍数"><span class="cv">3.56 倍</span></td>
+</tr>
+<tr><td class="k" data-label="证据"><span class="cv">SGLang cookbook，8×H200，每步去噪</span></td>
+<td data-label="T2VA"><span class="cv">0.749 秒</span></td>
+<td data-label="带视频参考"><span class="cv">2.572 秒</span></td>
+<td data-label="倍数"><span class="cv">3.43 倍</span></td>
+</tr>
+<tr><td class="k" data-label="证据"><span class="cv">vLLM-Omni，4×B300，两段视频参考，362 帧</span></td>
+<td data-label="T2VA"><span class="cv">约 195 秒（Sol 的 4×B300 T2VA 15 秒）</span></td>
+<td data-label="带视频参考"><span class="cv">784 秒</span></td>
+<td data-label="倍数"><span class="cv">约 4 倍</span></td>
+</tr>
+</tbody>
+</table></div>
+<p data-anchor-id="s3-p-84390a">这些测试的参考视频长度都没有写明。SGLang 最多截取和输出一样长的参考视频（5 秒）。</p>
+<p data-anchor-id="s3-p-506b75"><strong>按序列长度推算 WROP 的情况</strong></p>
+<ul>
+<li>5 秒 T2VA 每层注意力有 38,247 个 token（NVIDIA H3-DataCenter 页面）。</li>
+<li>粗算：线性层约占 42% 计算，注意力约占 58%。</li>
+<li>如果参考视频是 5 秒：序列 ×2，推算慢约 3.2 倍。这和实测的 3.4–3.6 倍对得上。</li>
+<li>WROP 的参考视频是 2.5 秒（60 帧）：序列约 ×1.5，推算慢约 <strong>1.9–2.1 倍</strong>。</li>
+<li>如果参考视频按原始的低分辨率编码，token 更少，可能只慢约 1.3 倍。这一点没有核实。</li>
+</ul>
+<p data-anchor-id="s3-p-50c3e8"><strong>每道题估算（8×B300）</strong></p>
+<div class="table-wrap wide stack" data-anchor-id="s3-table-3" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">情况</th>
+<th scope="col">跑法</th>
+<th scope="col">每段有效时间</th>
+<th scope="col">依据</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="情况"><span class="cv">低</span></td>
+<td data-label="跑法"><span class="cv">8 个单卡副本，参考视频代价 1.3 倍</span></td>
+<td data-label="每段有效时间"><span class="cv">约 21 秒</span></td>
+<td data-label="依据"><span class="cv">129.9 × 1.3 ÷ 8</span></td>
+</tr>
+<tr><td class="k" data-label="情况"><span class="cv"><strong>中（推荐）</strong></span></td>
+<td data-label="跑法"><span class="cv">8 个单卡副本，参考视频代价 2.0 倍</span></td>
+<td data-label="每段有效时间"><span class="cv"><strong>约 33 秒</strong></span></td>
+<td data-label="依据"><span class="cv">129.9 × 2.0 ÷ 8</span></td>
+</tr>
+<tr><td class="k" data-label="情况"><span class="cv">中（不分副本）</span></td>
+<td data-label="跑法"><span class="cv">1 个 8 卡 Ulysses 服务</span></td>
+<td data-label="每段有效时间"><span class="cv">约 38 秒</span></td>
+<td data-label="依据"><span class="cv">19.04 × 2.0</span></td>
+</tr>
+<tr><td class="k" data-label="情况"><span class="cv">保守</span></td>
+<td data-label="跑法"><span class="cv">1 个 8 卡服务，参考视频代价 3.5 倍</span></td>
+<td data-label="每段有效时间"><span class="cv">约 67 秒</span></td>
+<td data-label="依据"><span class="cv">19.04 × 3.5，按 H200 实测比例</span></td>
+</tr>
+</tbody>
+</table></div>
+<p data-anchor-id="s3-p-b4d15d">单卡副本可行吗？B300 有 288 GB 显存。H3 的 DiT（BF16 约 66 GB）、Qwen3-VL-32B 文字编码器（约 64 GB）和 VAE 放一张卡上约 140 GB，放得下。NVIDIA 已经实测过 1×B300 跑 50 步稠密 H3。但单卡跑 Ref2VA 没有人公开测过。</p>
+</section>
+<section class="card" id="s4" data-section="s4" aria-labelledby="s4-h"><h2 id="s4-h"><span class="badge" aria-hidden="true">4</span><span class="h-num">4. </span><span class="h-t">质量未验证 / 激进加速（只供参考，不用于成本中间值）</span></h2>
+<aside class="callout callout-warning" role="note" id="s4-warning-732eba" data-anchor-id="s4-warning-732eba"><p class="callout-title">只供参考</p><p>这一节的方案都会改变模型输出，或者没有和原版对比的质量数字。它们不用于第 6 节的推荐报价。</p>
+</aside>
+<div class="table-wrap wide stack xwide" data-anchor-id="s4-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">方案</th>
+<th scope="col">作者 / 日期</th>
+<th scope="col">做了什么</th>
+<th scope="col">公开速度</th>
+<th scope="col">质量证据</th>
+<th scope="col">支持带参考视频吗</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="方案"><span class="cv"><strong>Sol-H3</strong></span></td>
+<td data-label="作者 / 日期"><span class="cv">NVIDIA Research，2026-09（MiniMax 09-07 转发）</span></td>
+<td data-label="做了什么"><span class="cv">FastH3 4 步蒸馏 + Sol-Attn 稀疏注意力 + INT8 QKV / FP8 输出传输 + 并行 VAE + AdaLN 预计算</span></td>
+<td data-label="公开速度"><span class="cv">8×B300 T2VA 5 秒：<strong>1.653 秒</strong>（11.04 倍）；10 秒 3.732 秒；15 秒 6.612 秒</span></td>
+<td data-label="质量证据"><span class="cv">页面没有给和原版的数值对比</span></td>
+<td data-label="支持带参考视频吗"><span class="cv">引擎支持 Ref2VA，但测速只有 T2VA；Ref2VA 要换 LightX2V 的少步 LoRA</span></td>
+</tr>
+<tr><td class="k" data-label="方案"><span class="cv">Sol-Engine H3 配方</span></td>
+<td data-label="作者 / 日期"><span class="cv">NVIDIA SANA 团队，2026-08-03</span></td>
+<td data-label="做了什么"><span class="cv">融合 + FirstBlockCache 跨步缓存 + Sol-Attn</span></td>
+<td data-label="公开速度"><span class="cv">8×GB200：6.88 秒（3.95 倍）；“保质”档 3.16 倍</span></td>
+<td data-label="质量证据"><span class="cv">LPIPS（对原版）：保质档 0.210，极速档 0.293</span></td>
+<td data-label="支持带参考视频吗"><span class="cv">未测</span></td>
+</tr>
+<tr><td class="k" data-label="方案"><span class="cv">Sol-Engine H100/A100</span></td>
+<td data-label="作者 / 日期"><span class="cv">NVIDIA，2026-08-09</span></td>
+<td data-label="做了什么"><span class="cv">同上</span></td>
+<td data-label="公开速度"><span class="cv">4×H100：81.47 → 22.89 秒（3.56 倍）</span></td>
+<td data-label="质量证据"><span class="cv">只给了视频样例，没有数值</span></td>
+<td data-label="支持带参考视频吗"><span class="cv">未测</span></td>
+</tr>
+<tr><td class="k" data-label="方案"><span class="cv">FastH3 Preview v1</span></td>
+<td data-label="作者 / 日期"><span class="cv">Hao AI Lab（UCSD）+ NVIDIA FastGen，2026-08-27</span></td>
+<td data-label="做了什么"><span class="cv">DMD2 4 步蒸馏 + VSA 90% 稀疏注意力</span></td>
+<td data-label="公开速度"><span class="cv">8×B200 5 秒：6.84 秒；单卡最高 14 倍</span></td>
+<td data-label="质量证据"><span class="cv">SGLang 文档：难动作和细节上有质量差距</span></td>
+<td data-label="支持带参考视频吗"><span class="cv"><strong>不支持</strong>（只有 T2VA；Ref2VA 还在做）</span></td>
+</tr>
+<tr><td class="k" data-label="方案"><span class="cv">FastH3 8-Step V2</span></td>
+<td data-label="作者 / 日期"><span class="cv">FastVideo，在 SGLang</span></td>
+<td data-label="做了什么"><span class="cv">8 步蒸馏 + VSA 80% 稀疏</span></td>
+<td data-label="公开速度"><span class="cv">4×GB300 5 秒：5.20 秒</span></td>
+<td data-label="质量证据"><span class="cv">同上</span></td>
+<td data-label="支持带参考视频吗"><span class="cv"><strong>不支持</strong>（拒绝 ref2va 请求）</span></td>
+</tr>
+<tr><td class="k" data-label="方案"><span class="cv">SGLang <code>quality: &quot;high&quot;</code>（Cache-DiT）</span></td>
+<td data-label="作者 / 日期"><span class="cv">SGLang</span></td>
+<td data-label="做了什么"><span class="cv">跨步缓存</span></td>
+<td data-label="公开速度"><span class="cv">4×H200：1.40 倍；8×B300（PR #34841）：8.54 秒，比无损快 2.87 倍</span></td>
+<td data-label="质量证据"><span class="cv">4×H200：SSIM 0.931，PSNR 28.16 dB；B300：LPIPS 0.300（均值）/ 0.408（最大）</span></td>
+<td data-label="支持带参考视频吗"><span class="cv">只接受审核过的 T2VA 形状</span></td>
+</tr>
+<tr><td class="k" data-label="方案"><span class="cv">vLLM-Omni Cache-DiT <code>high</code></span></td>
+<td data-label="作者 / 日期"><span class="cv">vLLM-Omni</span></td>
+<td data-label="做了什么"><span class="cv">跨步缓存</span></td>
+<td data-label="公开速度"><span class="cv">4×H200：1.35 倍</span></td>
+<td data-label="质量证据"><span class="cv">SSIM 0.971</span></td>
+<td data-label="支持带参考视频吗"><span class="cv">未说明</span></td>
+</tr>
+<tr><td class="k" data-label="方案"><span class="cv">SGLang SubBlock 稀疏注意力</span></td>
+<td data-label="作者 / 日期"><span class="cv">SGLang PR #35850，2026-08-26 合并</span></td>
+<td data-label="做了什么"><span class="cv">75% 稀疏</span></td>
+<td data-label="公开速度"><span class="cv">8×H200 Ref2VA：133.5 → 92.0 秒（1.45 倍）</span></td>
+<td data-label="质量证据"><span class="cv">Ref2VA SSIM 0.941；T2VA 只有 0.758</span></td>
+<td data-label="支持带参考视频吗"><span class="cv"><strong>支持</strong></span></td>
+</tr>
+<tr><td class="k" data-label="方案"><span class="cv">SGLang 在线 FP8</span></td>
+<td data-label="作者 / 日期"><span class="cv">SGLang</span></td>
+<td data-label="做了什么"><span class="cv">权重量化</span></td>
+<td data-label="公开速度"><span class="cv">8×B300：29.12 → 27.12 秒（约 7%）</span></td>
+<td data-label="质量证据"><span class="cv">文档写明“近似”，没有质量数字</span></td>
+<td data-label="支持带参考视频吗"><span class="cv">支持</span></td>
+</tr>
+<tr><td class="k" data-label="方案"><span class="cv">LightX2V Turbo LoRA</span></td>
+<td data-label="作者 / 日期"><span class="cv">LightX2V</span></td>
+<td data-label="做了什么"><span class="cv">4 步蒸馏 LoRA</span></td>
+<td data-label="公开速度"><span class="cv">约 12 倍少的去噪步数</span></td>
+<td data-label="质量证据"><span class="cv">文档：“更激进的速度/质量取舍”</span></td>
+<td data-label="支持带参考视频吗"><span class="cv">有单独的 Ref2V 文件，但未验证</span></td>
+</tr>
+<tr><td class="k" data-label="方案"><span class="cv">Alibaba PAI PDD 加速 LoRA</span></td>
+<td data-label="作者 / 日期"><span class="cv">阿里 PAI</span></td>
+<td data-label="做了什么"><span class="cv">8 步并行解码蒸馏</span></td>
+<td data-label="公开速度"><span class="cv">约 6 倍少的去噪步数</span></td>
+<td data-label="质量证据"><span class="cv">没有公开数字</span></td>
+<td data-label="支持带参考视频吗"><span class="cv"><strong>有 Ref2VA 8 步版本</strong></span></td>
+</tr>
+<tr><td class="k" data-label="方案"><span class="cv">larryvrh Turbo LoRA</span></td>
+<td data-label="作者 / 日期"><span class="cv">社区</span></td>
+<td data-label="做了什么"><span class="cv">8 步蒸馏</span></td>
+<td data-label="公开速度"><span class="cv">—</span></td>
+<td data-label="质量证据"><span class="cv">无</span></td>
+<td data-label="支持带参考视频吗"><span class="cv">只有 FL2VA</span></td>
+</tr>
+<tr><td class="k" data-label="方案"><span class="cv">VDN-H3（Video DeltaNet）</span></td>
+<td data-label="作者 / 日期"><span class="cv">UC Berkeley</span></td>
+<td data-label="做了什么"><span class="cv">混合线性注意力 + 8 步 DMD2</span></td>
+<td data-label="公开速度"><span class="cv">8×B200 FP8 14 秒视频：去噪 11.2 秒</span></td>
+<td data-label="质量证据"><span class="cv">自称“近无损”，未见对原版的数字</span></td>
+<td data-label="支持带参考视频吗"><span class="cv"><strong>不支持</strong></span></td>
+</tr>
+<tr><td class="k" data-label="方案"><span class="cv">“H3 Super Acceleration”</span></td>
+<td data-label="作者 / 日期"><span class="cv">NVIDIA Sol-Engine，2026-08-22</span></td>
+<td data-label="做了什么"><span class="cv">4 步 H3 草稿 + 3 步 LTX-2.5 精修</span></td>
+<td data-label="公开速度"><span class="cv">1×GB200：22.2 倍</span></td>
+<td data-label="质量证据"><span class="cv">换了一部分模型</span></td>
+<td data-label="支持带参考视频吗"><span class="cv">不适用</span></td>
+</tr>
+<tr><td class="k" data-label="方案"><span class="cv">Sol-H3 论文（arXiv 2609.35110）</span></td>
+<td data-label="作者 / 日期"><span class="cv">NVIDIA</span></td>
+<td data-label="做了什么"><span class="cv">先低分辨率、后高分辨率的两阶段</span></td>
+<td data-label="公开速度"><span class="cv">最高 30 倍</span></td>
+<td data-label="质量证据"><span class="cv">未见数字</span></td>
+<td data-label="支持带参考视频吗"><span class="cv">不明</span></td>
+</tr>
+<tr><td class="k" data-label="方案"><span class="cv">Comfy-Org / 社区 INT8、NVFP4、剪枝权重</span></td>
+<td data-label="作者 / 日期"><span class="cv">Comfy-Org、rockerBOO、vonkaiser 等</span></td>
+<td data-label="做了什么"><span class="cv">量化 + AdaLN 剪枝</span></td>
+<td data-label="公开速度"><span class="cv">单卡可跑</span></td>
+<td data-label="质量证据"><span class="cv">MiniMax 文档：和官方 BF16 “不是同一数值基线”</span></td>
+<td data-label="支持带参考视频吗"><span class="cv">有 Ref2VA 版本</span></td>
+</tr>
+<tr><td class="k" data-label="方案"><span class="cv">fal “H3 Max”</span></td>
+<td data-label="作者 / 日期"><span class="cv">fal（二手来源）</span></td>
+<td data-label="做了什么"><span class="cv">后训练</span></td>
+<td data-label="公开速度"><span class="cv">号称 GB200 NVL72 上约 35 倍</span></td>
+<td data-label="质量证据"><span class="cv">无</span></td>
+<td data-label="支持带参考视频吗"><span class="cv">只在托管 API</span></td>
+</tr>
+<tr><td class="k" data-label="方案"><span class="cv">降到 WROP 的 320×192 或减少步数</span></td>
+<td data-label="作者 / 日期"><span class="cv">—</span></td>
+<td data-label="做了什么"><span class="cv">改输入</span></td>
+<td data-label="公开速度"><span class="cv">—</span></td>
+<td data-label="质量证据"><span class="cv">H3-Base 只在 768 短边上发布质量；其他设置会改变行为</span></td>
+<td data-label="支持带参考视频吗"><span class="cv">不推荐</span></td>
+</tr>
+</tbody>
+</table></div>
+<p data-anchor-id="s4-p-31f212"><strong>激进方案的大概成本（只供参考）：</strong> 如果用 8 步 Ref2VA 加速 LoRA（PAI PDD），每段约 6–8 秒，300 道约 1 小时（含准备），约 $30–40。但这样测的已经不是论文里的 H3。</p>
+</section>
+<section class="card" id="s5" data-section="s5" aria-labelledby="s5-h"><h2 id="s5-h"><span class="badge" aria-hidden="true">5</span><span class="h-num">5. </span><span class="h-t">哪条路适合 WROP</span></h2>
+<ul>
+<li>WROP 给 H3 的是：60 帧输入视频（作为参考）+ 文字 prompt。H3 输出 124 帧（5.2 秒，H3 最短 4 秒）。论文第 4.3 节和表 1。</li>
+<li>所以必须用 <strong>Ref2VA 权重 + <code>task: &quot;ref2va&quot;</code> + 视频参考</strong>。</li>
+<li>不要用 FL2VA 的首帧模式代替。那样只给一张图，丢掉了运动信息，等于换了题。</li>
+<li>所有 NVIDIA 的快速方案（Sol-H3、FastH3）的公开测速都是 T2VA。只有 SGLang SubBlock（有损）测过 Ref2VA。</li>
+<li>论文是通过 FAL 托管 API 跑的 H3。FAL 后端用哪种设置（步数、是否加速）不知道。所以本地无损重跑也不一定和论文完全一样。仍然建议新旧 prompt 在同一环境各跑一遍。</li>
+</ul>
+</section>
+<section class="card" id="s6" data-section="s6" aria-labelledby="s6-h"><h2 id="s6-h"><span class="badge" aria-hidden="true">6</span><span class="h-num">6. </span><span class="h-t">300 道题：新估算</span></h2>
+<p data-anchor-id="s6-p-bbaadf">价格：National Compute .edu 价，8×B300 一台 <strong>$32/小时</strong>。每次最多租 4 小时。</p>
+<div class="table-wrap wide stack xwide" data-anchor-id="s6-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">情况</th>
+<th scope="col">每段</th>
+<th scope="col">生成时间</th>
+<th scope="col">准备时间</th>
+<th scope="col">总时间</th>
+<th scope="col">费用</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="情况"><span class="cv">低（质量安全）</span></td>
+<td data-label="每段"><span class="cv">约 21 秒</span></td>
+<td data-label="生成时间"><span class="cv">约 1.8 小时</span></td>
+<td data-label="准备时间"><span class="cv">约 0.5 小时</span></td>
+<td data-label="总时间"><span class="cv">约 2.3 小时</span></td>
+<td data-label="费用"><span class="cv">约 $75</span></td>
+</tr>
+<tr><td class="k" data-label="情况"><span class="cv"><strong>中（质量安全，推荐）</strong></span></td>
+<td data-label="每段"><span class="cv"><strong>约 33 秒</strong></span></td>
+<td data-label="生成时间"><span class="cv"><strong>约 2.7 小时</strong></span></td>
+<td data-label="准备时间"><span class="cv"><strong>约 0.5 小时</strong></span></td>
+<td data-label="总时间"><span class="cv"><strong>约 3.2 小时（一次租期内）</strong></span></td>
+<td data-label="费用"><span class="cv"><strong>约 $100（约 ¥730）</strong></span></td>
+</tr>
+<tr><td class="k" data-label="情况"><span class="cv">中，不分副本</span></td>
+<td data-label="每段"><span class="cv">约 38 秒</span></td>
+<td data-label="生成时间"><span class="cv">约 3.2 小时</span></td>
+<td data-label="准备时间"><span class="cv">约 0.5 小时</span></td>
+<td data-label="总时间"><span class="cv">约 3.7 小时</span></td>
+<td data-label="费用"><span class="cv">约 $120</span></td>
+</tr>
+<tr><td class="k" data-label="情况"><span class="cv">保守</span></td>
+<td data-label="每段"><span class="cv">约 67 秒</span></td>
+<td data-label="生成时间"><span class="cv">约 5.6 小时</span></td>
+<td data-label="准备时间"><span class="cv">约 1–1.5 小时（要租两次）</span></td>
+<td data-label="总时间"><span class="cv">约 7 小时</span></td>
+<td data-label="费用"><span class="cv">约 $220</span></td>
+</tr>
+<tr><td class="k" data-label="情况"><span class="cv">第一次搭环境调试</span></td>
+<td data-label="每段"><span class="cv">—</span></td>
+<td data-label="生成时间"><span class="cv">—</span></td>
+<td data-label="准备时间"><span class="cv">+1–3 小时</span></td>
+<td data-label="总时间"><span class="cv">—</span></td>
+<td data-label="费用"><span class="cv">+$32–96</span></td>
+</tr>
+<tr><td class="k" data-label="情况"><span class="cv">新旧 prompt 各跑 300 道（中）</span></td>
+<td data-label="每段"><span class="cv">—</span></td>
+<td data-label="生成时间"><span class="cv">约 5.4 小时</span></td>
+<td data-label="准备时间"><span class="cv">约 1 小时</span></td>
+<td data-label="总时间"><span class="cv">约 6.5 小时（两次租期）</span></td>
+<td data-label="费用"><span class="cv">约 $200</span></td>
+</tr>
+</tbody>
+</table></div>
+<p data-anchor-id="s6-p-3a05ea">准备时间包括：下载 Ref2VA 权重（约 135 GiB，只能放本地 NVMe）、加载（约 2 分钟）、预热（约 40 秒）、冒烟测试。</p>
+<p data-anchor-id="s6-p-cc214c"><strong>和之前的估算比</strong>：之前中间值是每段 40 秒、约 4–4.5 小时、约 $130–150（标题写约 $170）。现在每段约 33 秒、约 3.2 小时、约 $100。变化来自两点：多副本多出约 12% 吞吐；准备时间按一次租期算。</p>
+</section>
+<section class="card" id="s7" data-section="s7" aria-labelledby="s7-h"><h2 id="s7-h"><span class="badge" aria-hidden="true">7</span><span class="h-num">7. </span><span class="h-t">还没确定的事</span></h2>
+<ol class="steps">
+<li><strong>参考视频的真实代价</strong>。WROP 这种 2.5 秒视频参考，没有任何公开测速。1.3–3.5 倍的范围是总时间最大的变量。最便宜的办法：租机后先跑 5 道题实测。</li>
+<li><strong>Ref2VA 权重本身是否更慢</strong>。SGLang 表里，没有参考时 Ref2VA 权重也要 29.1 秒（FL2VA 是 19.0 秒）。原因没有写。如果这是固定开销，中间值会升到约 50 秒/段（约 $150）。H200 的实测比例不支持这个说法，但不能排除。</li>
+<li><strong>单卡副本跑 Ref2VA</strong>。没有公开实测。主机内存要够同时加载 8 份权重。如果不行，就用 1 个 8 卡服务（中，不分副本）。</li>
+<li><strong>SGLang 版本差别</strong>。同一台 8×B300，不同版本测到 19.04 秒和 24.50 秒。</li>
+<li><strong>许可证地域</strong>。H3 社区许可证不覆盖美国、欧盟、英国、韩国。National Compute 机房位置还不知道。</li>
+</ol>
+</section>
+<section class="card" id="sources" data-section="sources" aria-labelledby="sources-h"><h2 id="sources-h"><span class="h-t">来源</span></h2>
+<ul>
+<li>Sol-H3（8×B300）：<a href="https://nvlabs.github.io/Sana/Sol-Engine/Sol-H3/" target="_blank" rel="noopener noreferrer">https://nvlabs.github.io/Sana/Sol-Engine/Sol-H3/</a></li>
+<li>Sol-Engine H3（8×GB200，2026-08-03）：<a href="https://nvlabs.github.io/Sana/Sol-Engine/H3/" target="_blank" rel="noopener noreferrer">https://nvlabs.github.io/Sana/Sol-Engine/H3/</a></li>
+<li>Sol-Engine H3 H100/A100（2026-08-09）：<a href="https://nvlabs.github.io/Sana/Sol-Engine/H3-DataCenter/" target="_blank" rel="noopener noreferrer">https://nvlabs.github.io/Sana/Sol-Engine/H3-DataCenter/</a></li>
+<li>Sol-Engine 代码：<a href="https://github.com/NVlabs/Sana/tree/sol-engine" target="_blank" rel="noopener noreferrer">https://github.com/NVlabs/Sana/tree/sol-engine</a></li>
+<li>RuntimeWire 报道（2026-09-07）：<a href="https://runtimewire.com/article/nvidia-sol-h3-minimax-video-faster-than-playback" target="_blank" rel="noopener noreferrer">https://runtimewire.com/article/nvidia-sol-h3-minimax-video-faster-than-playback</a></li>
+<li>Reactor 上线公告：<a href="https://www.reactor.inc/blog/fast-h3-sol-engine" target="_blank" rel="noopener noreferrer">https://www.reactor.inc/blog/fast-h3-sol-engine</a></li>
+<li>FastH3 Preview v1（2026-08-27）：<a href="https://haoailab.com/blogs/fasth3-preview/" target="_blank" rel="noopener noreferrer">https://haoailab.com/blogs/fasth3-preview/</a></li>
+<li>SGLang H3 cookbook（B300 测试表和测试脚本、质量档位、跨节点、FastH3/VDN）：<a href="https://docs.sglang.io/cookbook/diffusion/MiniMax/MiniMax-H3" target="_blank" rel="noopener noreferrer">https://docs.sglang.io/cookbook/diffusion/MiniMax/MiniMax-H3</a></li>
+<li>SGLang PR #34841（B300 Cache-DiT，LPIPS）：<a href="https://github.com/sgl-project/sglang/pull/34841" target="_blank" rel="noopener noreferrer">https://github.com/sgl-project/sglang/pull/34841</a></li>
+<li>SGLang PR #35850（8×H200 T2VA/FL2VA/Ref2VA 无损对比，2026-08-26 合并）：<a href="https://github.com/sgl-project/sglang/pull/35850" target="_blank" rel="noopener noreferrer">https://github.com/sgl-project/sglang/pull/35850</a></li>
+<li>MiniMax H3 自部署文档（2026-08-26 审阅）：<a href="https://platform.minimax.io/docs/guides/local-deploy-h3" target="_blank" rel="noopener noreferrer">https://platform.minimax.io/docs/guides/local-deploy-h3</a></li>
+<li>vLLM-Omni H3 配方：<a href="https://github.com/vllm-project/vllm-omni/blob/main/recipes/MiniMaxAI/MiniMax-H3.md" target="_blank" rel="noopener noreferrer">https://github.com/vllm-project/vllm-omni/blob/main/recipes/MiniMaxAI/MiniMax-H3.md</a></li>
+<li>NVIDIA TensorRT-Model-Connect PR #1034（草稿，未做真实权重测试）：<a href="https://github.com/NVIDIA/TensorRT-Model-Connect/pull/1034" target="_blank" rel="noopener noreferrer">https://github.com/NVIDIA/TensorRT-Model-Connect/pull/1034</a>；PR #1025（Windows RTX）：<a href="https://github.com/NVIDIA/TensorRT-Model-Connect/pull/1025" target="_blank" rel="noopener noreferrer">https://github.com/NVIDIA/TensorRT-Model-Connect/pull/1025</a></li>
+<li>Dynamo 只支持 M3：<a href="https://github.com/ai-dynamo/dynamo/releases/tag/v1.3.0-minimax-m3-dev.1" target="_blank" rel="noopener noreferrer">https://github.com/ai-dynamo/dynamo/releases/tag/v1.3.0-minimax-m3-dev.1</a></li>
+<li>explainx 关于 “Fast H3 v1” 的二手报道（把 FastH3 说成 MiniMax 自己发布，不准确）：<a href="https://explainx.ai/blog/minimax-fast-h3-v1-blackwell-realtime-open-video-august-2026" target="_blank" rel="noopener noreferrer">https://explainx.ai/blog/minimax-fast-h3-v1-blackwell-realtime-open-video-august-2026</a></li>
+<li>WROP 论文第 4.2–4.3 节、表 1：本地 <code>gen-splits/paper.txt</code></li>
+</ul>
+</section>
+    </article>
+
+    <nav class="more" aria-label="其他页面">
+      <ul><li><a class="more-card" href="/wrop-improvement-directions"><span class="more-k">另一篇</span><span class="more-t">WROP 后续改进方向</span></a></li><li><a class="more-card" href="/wrop-metrics-zh"><span class="more-k">另一篇</span><span class="more-t">WROP 评测指标：是什么、怎么算、哪里弱</span></a></li><li><a class="more-card" href="/wrop-rerun-cost"><span class="more-k">另一篇</span><span class="more-t">WROP 改 prompt 后重跑：时间和算力估算</span></a></li><li><a class="more-card" href="/"><span class="more-k">首页</span><span class="more-t">全部页面</span></a></li></ul>
+    </nav>
+
+    <section class="comments" id="comments" aria-labelledby="comments-h">
+      <h2 id="comments-h">评论 <span class="count" id="list-count">0</span></h2>
+      <p class="hint">选中正文里的文字。点「评论」按钮。评论会贴在那段文字上。</p>
+      <p class="hint">无需登录。任何人都可以回复、编辑、删除、解决任何评论。昵称可不填，会记在本浏览器里。</p>
+      <button type="button" class="btn ghost" id="page-comment">评论整篇</button>
+      <p class="empty" id="list-empty">还没有评论。</p>
+      <ol class="thread-list" id="thread-list"></ol>
+    </section>
+  </main>
+</div>
+
+<footer class="foot">
+  <p>来源：<code>content/wrop-h3-nvidia-speed.md</code>。更新于 2026-10-09。</p>
+  <p>托管于 Cloudflare。评论公开，任何人可改。</p>
+</footer>
+
+<button type="button" class="sel-btn" id="sel-btn" hidden>评论</button>
+
+<div class="scrim" id="scrim" hidden></div>
+<aside class="panel" id="panel" role="dialog" aria-modal="true" aria-labelledby="panel-h" hidden>
+  <div class="panel-head">
+    <h2 id="panel-h">评论</h2>
+    <button type="button" class="icon-btn" id="panel-close" aria-label="关闭">×</button>
+  </div>
+  <div class="panel-body">
+    <blockquote class="panel-quote" id="panel-quote" hidden></blockquote>
+    <ol class="thread" id="panel-thread"></ol>
+    <form class="composer" id="composer" novalidate>
+      <label class="field" id="f-nick-field">
+        <span>昵称（可不填）</span>
+        <input type="text" id="f-nick" maxlength="40" autocomplete="nickname" placeholder="匿名">
+      </label>
+      <label class="field">
+        <span id="f-body-label">评论</span>
+        <textarea id="f-body" maxlength="2000" rows="4" required placeholder="写下你的看法。"></textarea>
+      </label>
+      <div class="form-foot">
+        <span class="counter" id="f-count">0 / 2000</span>
+        <button type="submit" class="btn" id="f-submit">发布</button>
+      </div>
+      <p class="form-msg" id="f-msg" role="status" aria-live="polite"></p>
+    </form>
+  </div>
+</aside>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

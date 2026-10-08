@@ -15,27 +15,29 @@
 <body data-page="wrop-rerun-cost">
 <a class="skip" href="#main">跳到正文</a>
 <div class="progress" aria-hidden="true"><span id="progress-bar"></span></div>
-<nav class="topnav" aria-label="站点"><div class="topnav-inner"><a class="brand" href="/">thoughts</a><div class="topnav-links"><a href="/wrop-improvement-directions" title="WROP 后续改进方向">改进方向</a><a href="/wrop-metrics-zh" title="WROP 评测指标：是什么、怎么算、哪里弱">评测指标</a><a href="/wrop-rerun-cost" aria-current="page" title="WROP 改 prompt 后重跑：时间和算力估算">重跑成本</a></div></div></nav>
+<nav class="topnav" aria-label="站点"><div class="topnav-inner"><a class="brand" href="/">thoughts</a><div class="topnav-links"><a href="/wrop-improvement-directions" title="WROP 后续改进方向">改进方向</a><a href="/wrop-metrics-zh" title="WROP 评测指标：是什么、怎么算、哪里弱">评测指标</a><a href="/wrop-rerun-cost" aria-current="page" title="WROP 改 prompt 后重跑：时间和算力估算">重跑成本</a><a href="/wrop-h3-nvidia-speed" title="MiniMax H3 在 NVIDIA 上能跑多快：对 WROP 重跑的影响">H3 加速</a></div></div></nav>
 
 <header class="hero">
   <div class="hero-inner" data-section="intro" id="intro">
     <p class="eyebrow">thoughts.ycjian.com · 研究笔记</p>
     <h1>WROP 改 prompt 后重跑：时间和算力估算</h1>
     <p class="lead">日期：2026-10-08（新加坡时间）。所有数字都是数量级估算，不是实测，也不是厂商承诺。</p>
-    <ul class="chips" aria-label="概要"><li>8×B300</li><li>MiniMax H3</li><li>约 $100–350</li><li>数量级估算</li><li>选中文字即可评论</li></ul>
+    <ul class="chips" aria-label="概要"><li>8×B300</li><li>MiniMax H3</li><li>质量安全中间值约 $100</li><li>数量级估算</li><li>选中文字即可评论</li></ul>
   </div>
 </header>
 
 <div class="layout">
   <nav class="toc" aria-label="目录">
     <p class="toc-title">目录</p>
-    <ol><li><a href="#s0"><span class="toc-n">0</span><span class="toc-t">一句话结论</span></a></li><li><a href="#s1"><span class="toc-n">1</span><span class="toc-t">范围和假设</span></a></li><li><a href="#s2"><span class="toc-n">2</span><span class="toc-t">每道题要多久</span></a></li><li><a href="#s3"><span class="toc-n">3</span><span class="toc-t">300 道题一共多少算力</span></a></li><li><a href="#s4"><span class="toc-n">4</span><span class="toc-t">重训 PWM-WROP：另算</span></a></li><li><a href="#s5"><span class="toc-n">5</span><span class="toc-t">费用</span></a></li><li><a href="#s6"><span class="toc-n">6</span><span class="toc-t">敏感性：跑多少题</span></a></li><li><a href="#s7"><span class="toc-n">7</span><span class="toc-t">最大的不确定因素</span></a></li><li><a href="#sources"><span class="toc-n">·</span><span class="toc-t">来源</span></a></li></ol>
+    <ol><li><a href="#s0"><span class="toc-n">0</span><span class="toc-t">一句话结论</span></a></li><li><a href="#s1"><span class="toc-n">1</span><span class="toc-t">范围和假设</span></a></li><li><a href="#s2"><span class="toc-n">2</span><span class="toc-t">每道题要多久</span></a></li><li><a href="#s3"><span class="toc-n">3</span><span class="toc-t">300 道题一共多少算力</span></a></li><li><a href="#s4"><span class="toc-n">4</span><span class="toc-t">重训 PWM-WROP：另算</span></a></li><li><a href="#s5"><span class="toc-n">5</span><span class="toc-t">费用</span></a></li><li><a href="#s6"><span class="toc-n">6</span><span class="toc-t">敏感性：跑多少题</span></a></li><li><a href="#s7"><span class="toc-n">7</span><span class="toc-t">最大的不确定因素</span></a></li><li><a href="#s8"><span class="toc-n">8</span><span class="toc-t">NVIDIA 优化路径（2026-10-09 补充）</span></a></li><li><a href="#sources"><span class="toc-n">·</span><span class="toc-t">来源</span></a></li></ol>
     <a class="toc-comments" href="#comments">全部评论 <span class="count" id="toc-count">0</span></a>
   </nav>
 
   <main id="main">
     <article class="doc">
 <section class="card" id="s0" data-section="s0" aria-labelledby="s0-h"><h2 id="s0-h"><span class="badge" aria-hidden="true">0</span><span class="h-num">0. </span><span class="h-t">一句话结论</span></h2>
+<aside class="callout callout-tip" role="note" id="s0-tip-f31eaa" data-anchor-id="s0-tip-f31eaa"><p class="callout-title">2026-10-09 更新：中间值改为约 $100</p><p>按质量安全的最快跑法（8 个单卡副本，无损 BF16）重算：每段约 33 秒，300 道约 <strong>3.2 小时、约 $100（约 ¥730）</strong>，一次 4 小时租期内能跑完。下面第 0–6 节是 10-08 的旧估算，保留原样。新数字见第 8 节和 <a href="/wrop-h3-nvidia-speed">H3 加速调研</a>。</p>
+</aside>
 <ul>
 <li>用 MiniMax 视频模型重跑 300 道题，在一台 8×B300 上大约要 <strong>3–8 小时</strong>（含装环境），花 <strong>约 $100–350（约 ¥700–2,500）</strong>，中间值约 <strong>$170（约 ¥1,200）</strong>。</li>
 <li>用 MiniMax 官方 API 跑同样 300 道，大约 <strong>$180–360</strong>，不用装任何东西。两条路钱差不多。</li>
@@ -107,6 +109,8 @@
 </tbody>
 </table></div>
 <p data-anchor-id="s2-p-ec0114">另一组数据：8×H200 上，带参考视频的 V2V 每步 2.57 秒，纯文生视频每步 0.75 秒，慢 3.4 倍。WROP 的参考视频只有 2.5 秒，所以不会慢这么多。</p>
+<aside class="callout callout-note" role="note" id="s2-note-23230c" data-anchor-id="s2-note-23230c"><p class="callout-title">更正（2026-10-09）</p><p>这张表的测试脚本发送的是 <code>&quot;task&quot;:&quot;t2va&quot;,&quot;conditions&quot;:[]</code>，没有参考视频。Ref2VA 两行只是用 Ref2VA 权重跑文生视频，不是参考生视频的速度。见第 8 节。</p>
+</aside>
 <p data-anchor-id="s2-p-e6fb76"><strong>我的估算（每道题）</strong></p>
 <div class="table-wrap wide stack" data-anchor-id="s2-table-2" tabindex="0" role="region" aria-label="表格"><table>
 <thead>
@@ -299,6 +303,17 @@
 <li><strong>人工打分</strong>。如果要重做 Elo，人工费用和时间可能比 GPU 贵，本文没算。</li>
 </ol>
 </section>
+<section class="card" id="s8" data-section="s8" aria-labelledby="s8-h"><h2 id="s8-h"><span class="badge" aria-hidden="true">8</span><span class="h-num">8. </span><span class="h-t">NVIDIA 优化路径（2026-10-09 补充）</span></h2>
+<p data-anchor-id="s8-p-665901">完整内容在 <a href="/wrop-h3-nvidia-speed">H3 加速调研</a>。要点：</p>
+<ul>
+<li>质量安全的方案：SGLang 无损 BF16（或 NVIDIA 的稠密 50 步），开 8 个单卡副本。T2VA 约 16 秒/段（有效吞吐）。</li>
+<li>WROP 带 2.5 秒视频参考，推算约慢 2 倍：<strong>每段约 33 秒</strong>。</li>
+<li><strong>300 道：约 3.2 小时，约 $100（约 ¥730）</strong>，一次 4 小时租期内能跑完。保守约 7 小时、约 $220。第一次搭环境另加 $32–96。</li>
+<li>新旧 prompt 各跑 300 道（中间值）：约 6.5 小时，约 $200。</li>
+</ul>
+<aside class="callout callout-warning" role="note" id="s8-warning-259596" data-anchor-id="s8-warning-259596"><p class="callout-title">Sol-H3：质量未验证</p><p>你记得的 NVIDIA 方案是 <strong>Sol-H3</strong>（NVIDIA Research）：8×B300 上 1.653 秒生成 5 秒视频。它用了 4 步蒸馏、稀疏注意力和 INT8/FP8 传输，会改变输出，公开材料没有和原版的质量对比，而且只测了文生视频。所以不用于评测成本。其他激进加速（蒸馏、稀疏、缓存、量化）都列在调研页第 4 节。</p>
+</aside>
+</section>
 <section class="card" id="sources" data-section="sources" aria-labelledby="sources-h"><h2 id="sources-h"><span class="h-t">来源</span></h2>
 <ul>
 <li>WROP 论文（arXiv 2609.28654）：表 1（MiniMax H3，FAL API，1344×768/24/124）、第 3 节（60 帧输入）、第 4.3 节（推理协议）、附录 B（trn2.48xlarge 训练速度）。本地文件 <code>gen-splits/paper.txt</code>。</li>
@@ -311,12 +326,13 @@
 <li>B300 规格（BF16 稠密 2.25 PFLOPS/卡）：https://flopper.io/gpu/nvidia-b300-sxm-288gb/spec-sheet.pdf</li>
 <li>8×B300 价格：Second Mate 转来的 National Compute 公共研究 .edu 价（$4/卡·小时），2026-10-08。</li>
 <li>196/104 划分：本地 <code>prompt-ambiguity-197.jsonl</code> + <code>generalization-splits.csv</code>。</li>
+<li>NVIDIA 优化路径和新估算：<a href="/wrop-h3-nvidia-speed">H3 加速调研</a>（2026-10-09）。</li>
 </ul>
 </section>
     </article>
 
     <nav class="more" aria-label="其他页面">
-      <ul><li><a class="more-card" href="/wrop-improvement-directions"><span class="more-k">另一篇</span><span class="more-t">WROP 后续改进方向</span></a></li><li><a class="more-card" href="/wrop-metrics-zh"><span class="more-k">另一篇</span><span class="more-t">WROP 评测指标：是什么、怎么算、哪里弱</span></a></li><li><a class="more-card" href="/"><span class="more-k">首页</span><span class="more-t">全部页面</span></a></li></ul>
+      <ul><li><a class="more-card" href="/wrop-improvement-directions"><span class="more-k">另一篇</span><span class="more-t">WROP 后续改进方向</span></a></li><li><a class="more-card" href="/wrop-metrics-zh"><span class="more-k">另一篇</span><span class="more-t">WROP 评测指标：是什么、怎么算、哪里弱</span></a></li><li><a class="more-card" href="/wrop-h3-nvidia-speed"><span class="more-k">另一篇</span><span class="more-t">MiniMax H3 在 NVIDIA 上能跑多快：对 WROP 重跑的影响</span></a></li><li><a class="more-card" href="/"><span class="more-k">首页</span><span class="more-t">全部页面</span></a></li></ul>
     </nav>
 
     <section class="comments" id="comments" aria-labelledby="comments-h">
@@ -331,7 +347,7 @@
 </div>
 
 <footer class="foot">
-  <p>来源：<code>content/wrop-rerun-cost.md</code>。更新于 2026-10-08。</p>
+  <p>来源：<code>content/wrop-rerun-cost.md</code>。更新于 2026-10-09。</p>
   <p>托管于 Cloudflare。评论公开，任何人可改。</p>
 </footer>
 
