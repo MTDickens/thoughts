@@ -590,8 +590,8 @@ def bundle_site(public_dir, gen_js):
     gen_js.write_text(js, encoding="utf-8")
     size = len(js.encode())
     print(f"wrote {gen_js.relative_to(ROOT) if gen_js.is_relative_to(ROOT) else gen_js} ({size} bytes, {len(entries)} files)")
-    if size > 2_500_000:
-        raise BuildError(f"bundle is {size} bytes; Workers Free allows 3 MB compressed. Move big media out.")
+    if size > 40_000_000:  # Workers limit: 64 MiB uncompressed (developers.cloudflare.com/workers/platform/limits/#worker-size)
+        raise BuildError(f"bundle is {size} bytes; keep it well under the 64 MiB Worker limit. Move big media out.")
 
 
 # ---------------------------------------------------------------- self-test

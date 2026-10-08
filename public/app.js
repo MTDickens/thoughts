@@ -15,6 +15,9 @@
   let mode = null;          // { kind: 'new', anchor } | { kind: 'thread', rootId }
   let sitekey = null, tsWidget = null, tsToken = null, tsPromise = null;
   const found = new Map();  // root id -> true when highlight placed
+  let auth = null;          // { token, role, name } when Max (owner) or an agent is logged in
+  const TOKEN_KEY = 'thoughts.token';
+  const authHeaders = () => (auth ? { authorization: `Bearer ${auth.token}` } : {});
 
   /* ---------- helpers ---------- */
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
@@ -74,6 +77,7 @@
     const root = document.querySelector(`[data-section="${CSS.escape(c.anchor_id)}"]`);
     const r = root && locate(root, c);
     found.set(c.id, !!(r && wrap(root, r[0], r[1], c.id)));
+    if (c.resolved_at) document.querySelectorAll(`mark.hl[data-cid="${CSS.escape(c.id)}"]`).forEach((m) => m.classList.add('resolved'));
   }
 
   /* ---------- selection → 评论 button ---------- */
@@ -107,12 +111,60 @@
   });
 
   /* ---------- panel ---------- */
+  function authorEls(c) {
+    if (c.author_role === 'owner') return [el('span', 'role role-owner', 'Max')];
+    if (c.author_role === 'agent') return [el('span', 'cmt-nick', c.author_name || 'agent'), el('span', 'role role-agent', 'agent')];
+    return c.nickname ? [el('span', 'cmt-nick', c.nickname), el('span', 'role role-anon', '匿名')] : [el('span', 'role role-anon', '匿名')];
+  }
   function renderComment(c, isReply) {
-    const li = el('li', isReply ? 'cmt reply' : 'cmt');
+    const li = el('li', isReply ? 'cmt reply' : 'cmt'); li.dataset.cid = c.id;
+    if (c.author_role === 'owner') li.classList.add('by-owner');
     const meta = el('div', 'cmt-meta');
-    meta.append(el('span', 'cmt-nick', c.nickname || '匿名'), el('time', null, fmtTime(c.created_at)));
-    li.append(meta, el('div', 'cmt-body', c.body));
+    meta.append(...authorEls(c));
+    meta.append(el('time', null, fmtTime(c.created_at)));
+    if (c.edited_at) meta.append(el('span', 'cmt-edited', '已编辑'));
+    if (!isReply && c.resolved_at) meta.append(el('span', 'cmt-resolved', '已解决'));
+    const body = el('div', 'cmt-body', c.body);
+    li.append(meta, body);
+    if (auth) li.append(actionsFor(c, isReply, li, body));
     return li;
+  }
+
+  /* ---------- owner/agent actions: edit, delete, resolve ---------- */
+  async function apiCall(method, path, payload) {
+    const res = await fetch(path, { method, headers: { 'content-type': 'application/json', ...authHeaders() }, body: payload ? JSON.stringify(payload) : undefined });
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 401) { logout(); throw new Error('令牌失效。请重新登录。'); }
+    if (!res.ok) throw new Error(data.error || `操作失败（${res.status}）。`);
+    return data;
+  }
+  function actionsFor(c, isReply, li, bodyEl) {
+    const bar = el('div', 'cmt-actions');
+    const btn = (label, fn, cls) => { const b = el('button', `link-btn${cls ? ` ${cls}` : ''}`, label); b.type = 'button'; b.addEventListener('click', (e) => { e.stopPropagation(); fn(b); }); bar.append(b); return b; };
+    btn('编辑', () => {
+      if (li.querySelector('.cmt-edit')) return;
+      const box = el('div', 'cmt-edit'); const ta = el('textarea'); ta.value = c.body; ta.rows = 4; ta.maxLength = 2000;
+      const save = el('button', 'btn', '保存'); save.type = 'button';
+      const cancel = el('button', 'link-btn', '取消'); cancel.type = 'button';
+      const msg = el('p', 'form-msg err');
+      box.append(ta, save, cancel, msg); bodyEl.hidden = true; bar.hidden = true; li.append(box); ta.focus();
+      box.addEventListener('click', (e) => e.stopPropagation());
+      cancel.addEventListener('click', () => { box.remove(); bodyEl.hidden = false; bar.hidden = false; });
+      save.addEventListener('click', async () => {
+        save.disabled = true;
+        try { await apiCall('PATCH', `${API}/${encodeURIComponent(c.id)}`, { body: ta.value }); toast('已保存。'); await reload(); }
+        catch (e) { msg.textContent = e.message; save.disabled = false; }
+      });
+    });
+    btn('删除', async () => {
+      const n = isReply ? 0 : comments.filter((x) => x.parent_id === c.id).length;
+      if (!window.confirm(n ? `删除这条评论和它的 ${n} 条回复？` : '删除这条评论？')) return;
+      try { await apiCall('DELETE', `${API}/${encodeURIComponent(c.id)}`); toast('已删除。'); await reload(); } catch (e) { toast(e.message); }
+    }, 'danger');
+    if (!isReply) btn(c.resolved_at ? '重新打开' : '解决', async () => {
+      try { await apiCall('POST', `${API}/${encodeURIComponent(c.id)}/${c.resolved_at ? 'reopen' : 'resolve'}`); toast(c.resolved_at ? '已重新打开。' : '已解决。'); await reload(); } catch (e) { toast(e.message); }
+    });
+    return bar;
   }
 
   function openPanel(m) {
@@ -141,7 +193,10 @@
     fMsg.textContent = ''; fMsg.className = 'form-msg';
     panel.hidden = false; scrim.hidden = false;
     hideSelBtn();
-    ensureTurnstile();
+    $('f-nick-field').hidden = !!auth; $('f-as').hidden = !auth;
+    if (auth) $('f-as').textContent = `以 ${auth.name}${auth.role === 'agent' ? '（agent）' : ''} 身份发布。无需人机验证。`;
+    $('ts-box').hidden = !!auth;
+    if (!auth) ensureTurnstile();
     setTimeout(() => fBody.focus({ preventScroll: true }), 30);
   }
   function closePanel() {
@@ -195,29 +250,27 @@
     if (!mode) return;
     const body = fBody.value.trim();
     if (!body) { fMsg.textContent = '请先写评论。'; fMsg.className = 'form-msg err'; return; }
-    if (sitekey && !tsToken) { fMsg.textContent = '请先完成人机验证。'; fMsg.className = 'form-msg err'; return; }
+    if (!auth && sitekey && !tsToken) { fMsg.textContent = '请先完成人机验证。'; fMsg.className = 'form-msg err'; return; }
     const nickname = fNick.value.trim();
     try { localStorage.setItem('thoughts.nick', nickname); } catch (_) { /* ignore */ }
-    const payload = { page: PAGE, nickname, body, turnstile_token: tsToken || '' };
+    const payload = auth ? { page: PAGE, body } : { page: PAGE, nickname, body, turnstile_token: tsToken || '' };
     if (mode.kind === 'thread') payload.parent_id = mode.rootId;
     else Object.assign(payload, mode.anchor);
     fSubmit.disabled = true; fMsg.textContent = '正在发布……'; fMsg.className = 'form-msg';
     try {
-      const res = await fetch(API, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
+      const res = await fetch(API, { method: 'POST', headers: { 'content-type': 'application/json', ...authHeaders() }, body: JSON.stringify(payload) });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `发布失败（${res.status}）。`);
       const c = data.comment;
-      comments.push(c);
-      if (!c.parent_id) placeHighlight(c);
       fBody.value = ''; $('f-count').textContent = '0 / 2000';
-      renderList();
+      if (c.parent_id) { await reload(); } else { comments.push(c); placeHighlight(c); renderList(); }
       openPanel({ kind: 'thread', rootId: c.parent_id || c.id });
       toast('已发布。');
     } catch (err) {
       fMsg.textContent = err.message; fMsg.className = 'form-msg err';
     } finally {
       fSubmit.disabled = false;
-      if (tsWidget !== null && window.turnstile) { window.turnstile.reset(tsWidget); tsToken = null; }
+      if (!auth && tsWidget !== null && window.turnstile) { window.turnstile.reset(tsWidget); tsToken = null; }
     }
   });
 
@@ -230,7 +283,8 @@
     for (const r of roots) {
       const replies = comments.filter((c) => c.parent_id === r.id);
       const li = el('li', 'thread-item'); li.tabIndex = 0;
-      li.append(el('div', 'ti-where', `${sectionLabel(r.anchor_id)} · ${replies.length + 1} 条`));
+      li.append(el('div', 'ti-where', `${sectionLabel(r.anchor_id)} · ${replies.length + 1} 条${r.resolved_at ? ' · 已解决' : ''}`));
+      if (r.resolved_at) li.classList.add('resolved');
       if (r.quote) li.append(el('p', 'ti-quote', r.quote));
       if (r.anchor_type === 'text' && found.get(r.id) === false) li.append(el('div', 'ti-orphan', '原文已改。找不到这段文字。'));
       li.append(renderComment(r, false));
@@ -262,17 +316,62 @@
   const onScroll = () => { const h = document.documentElement; const p = h.scrollTop / Math.max(1, h.scrollHeight - h.clientHeight); bar.style.width = `${(p * 100).toFixed(2)}%`; };
   document.addEventListener('scroll', onScroll, { passive: true }); onScroll();
 
+  /* ---------- load / reload ---------- */
+  function clearHighlights() {
+    document.querySelectorAll('mark.hl').forEach((m) => { const p = m.parentNode; while (m.firstChild) p.insertBefore(m.firstChild, m); p.removeChild(m); p.normalize(); });
+    found.clear();
+  }
+  async function fetchComments() {
+    const r = await fetch(`${API}?page=${encodeURIComponent(PAGE)}`, { headers: authHeaders() });
+    if (r.status === 401 && auth) { logout(); return fetchComments(); }
+    if (!r.ok) throw new Error();
+    const data = await r.json();
+    return Array.isArray(data.comments) ? data.comments : [];
+  }
+  async function reload() {
+    const keep = mode && mode.kind === 'thread' ? mode.rootId : null;
+    comments = await fetchComments();
+    clearHighlights();
+    comments.sort((a, b) => a.created_at - b.created_at).forEach(placeHighlight);
+    renderList();
+    if (keep && comments.some((c) => c.id === keep)) openPanel({ kind: 'thread', rootId: keep });
+    else if (keep) closePanel();
+  }
+
+  /* ---------- Max / agent login (token kept in localStorage; sent only as Authorization header) ---------- */
+  function showAuth() {
+    $('auth-state').hidden = !auth; $('auth-logout').hidden = !auth; $('auth-login').hidden = !!auth; $('auth-form').hidden = true;
+    if (auth) $('auth-state').textContent = `已登录：${auth.name}${auth.role === 'agent' ? '（agent）' : ''}。可编辑、删除、解决任何评论。`;
+    document.body.classList.toggle('authed', !!auth);
+  }
+  function logout() { auth = null; try { localStorage.removeItem(TOKEN_KEY); } catch (_) { /* ignore */ } showAuth(); }
+  async function login(token, quiet) {
+    const r = await fetch('/api/me', { headers: { authorization: `Bearer ${token}` } });
+    if (!r.ok) { if (!quiet) { $('auth-msg').textContent = '令牌无效。'; $('auth-msg').className = 'form-msg err'; } return false; }
+    const me = await r.json();
+    auth = { token, role: me.role, name: me.name };
+    try { localStorage.setItem(TOKEN_KEY, token); } catch (_) { /* ignore */ }
+    $('auth-msg').textContent = ''; showAuth(); return true;
+  }
+  $('auth-login').addEventListener('click', () => { $('auth-form').hidden = false; $('auth-login').hidden = true; $('auth-token').focus(); });
+  $('auth-cancel').addEventListener('click', () => { $('auth-form').hidden = true; $('auth-login').hidden = false; $('auth-msg').textContent = ''; });
+  $('auth-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const tok = $('auth-token').value.trim(); if (!tok) return;
+    if (await login(tok)) { $('auth-token').value = ''; toast('已登录。'); await reload().catch(() => {}); }
+  });
+  $('auth-logout').addEventListener('click', async () => { logout(); toast('已退出。'); await reload().catch(() => {}); });
+
   /* ---------- boot ---------- */
   (async () => {
     try {
-      const [cfg, data] = await Promise.all([
+      let saved = null; try { saved = localStorage.getItem(TOKEN_KEY); } catch (_) { /* ignore */ }
+      const [cfg] = await Promise.all([
         fetch('/api/config').then((r) => r.json()).catch(() => ({})),
-        fetch(`${API}?page=${encodeURIComponent(PAGE)}`).then((r) => { if (!r.ok) throw new Error(); return r.json(); }),
+        saved ? login(saved, true).then((ok) => { if (!ok) logout(); }) : Promise.resolve(showAuth()),
       ]);
       sitekey = cfg.turnstile_sitekey || null;
-      comments = Array.isArray(data.comments) ? data.comments : [];
-      comments.sort((a, b) => a.created_at - b.created_at).forEach(placeHighlight);
-      renderList();
+      await reload();
       const h = location.hash.match(/^#c-([\w-]+)$/);
       if (h) { const c = comments.find((x) => x.id === h[1]); if (c) openPanel({ kind: 'thread', rootId: c.parent_id || c.id }); }
     } catch (_) {

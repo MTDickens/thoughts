@@ -32,25 +32,41 @@
 ## 评论
 
 - 读者选中文字。点「评论」。评论贴在那段文字上。
-- 匿名。昵称可不填。
-- 防刷：Cloudflare Turnstile（免费）+ 每 IP 限速（10 分钟 5 条，1 天 40 条）+ 全站每小时 200 条。
+- 三种身份，徽章不同：
+  - **Max**（owner）：浏览器里登录。可以编辑、删除、解决/重开**任何**评论。
+  - **agent**：用 API 或 `tools/comments.py`。权限和 Max 一样（平级）。徽章显示 agent 名字。
+  - **匿名**：不登录。只能发评论和回复。昵称可不填。
+- 匿名防刷：Cloudflare Turnstile（免费）+ 每 IP 限速（10 分钟 5 条，1 天 40 条）+ 全站匿名评论每小时 200 条。
+- 令牌请求（owner/agent）不走 Turnstile。限速：每个角色 10 分钟 60 条。
+- 回复会自动重开已解决的线程。
 - 存储：D1 `thoughts-comments`，表 `comments`。每条评论带 `page`（页面 slug），各页评论互不混。
+  新列：`author_role`（owner/agent/anon）、`author_name`、`edited_at`、`resolved_at`、`resolved_by`。
 - 锚点类型 `anchor_type`：`text`（文字）、`element`（图片、表格、可视化组件，用 `data-anchor-id`）、`media_time`（视频时间点，用 `media_t` 秒）。
 
-### 删除评论
+### Max 登录
 
-在 Cloudflare 控制台打开 D1 → `thoughts-comments` → Console，执行：
+1. 打开任意页面，滚到「评论」。点 **Max 登录**。
+2. 粘贴 `OWNER_TOKEN`（在盒子上的 `/home/box/.config/thoughts/secrets.env`）。点「登录」。
+3. 令牌存在本浏览器的 `localStorage`，只放在 `Authorization` 请求头里（不用 cookie）。之后每条评论下有「编辑 / 删除 / 解决」。
+4. 点「退出」清掉令牌。令牌失效（401）时自动退出。
 
-```sql
--- 先找
-SELECT id, nickname, body, quote FROM comments ORDER BY created_at DESC LIMIT 20;
--- 隐藏（可恢复）
-UPDATE comments SET status = 'hidden' WHERE id = '<id>';
--- 彻底删除（回复也一起删）
-DELETE FROM comments WHERE id = '<id>' OR parent_id = '<id>';
-```
+### agent：命令行
 
-也可以用命令行：`npx wrangler d1 execute thoughts-comments --remote --command "..."`。
+`python3 tools/comments.py open`、`show`、`add`、`reply`、`edit`、`delete`、`resolve`、`reopen`、`list`，加 `--json` 出 JSON。
+令牌：`$THOUGHTS_AGENT_TOKEN`，否则读 `secrets.env` 里的 `AGENT_TOKEN`。
+用法和工作流见 **[AUTHORING-SPEC.md 第 6 节](AUTHORING-SPEC.md)**，接口表也在那里。
+
+### 安全
+
+- 令牌只认 `Authorization: Bearer …`。不用 cookie，所以没有 CSRF 面。
+- 写操作（POST/PATCH/DELETE）检查 `Origin`，只收同源或无 `Origin`（服务器端调用）。不开 CORS。
+- 错误令牌返回 401。匿名请求不能编辑、删除、解决（401）。
+
+### 数据库迁移
+
+- 新库：`schema.sql`。
+- 旧库（v1）：`migrations/0002_roles_edit_resolve.sql`。只加列、加索引，不改旧数据。旧评论都算匿名。
+  `npx wrangler d1 execute thoughts-comments --remote --file=migrations/0002_roles_edit_resolve.sql`（只跑一次；生产库已于 2026-10-08 跑过）。
 
 ## 本地开发
 
@@ -58,7 +74,9 @@ DELETE FROM comments WHERE id = '<id>' OR parent_id = '<id>';
 npm install
 python3 tools/build.py
 npx wrangler d1 execute thoughts-comments --local --file=schema.sql
+# 本地令牌（不提交）：.dev.vars 里写 OWNER_TOKEN=… 和 AGENT_TOKEN=…
 npx wrangler dev
+THOUGHTS_URL=http://127.0.0.1:8787 THOUGHTS_AGENT_TOKEN=… python3 tools/comments.py open
 ```
 
 ## 部署
@@ -73,7 +91,7 @@ npx wrangler dev
 
 改内容的流程：改 `content/` 或 `public/` → 跑 `python3 tools/build.py` → 提交 → `git push`。
 
-推送后 2 分钟内没有构建：用 API 手动起构建（见 AUTHORING-SPEC.md 第 4 节）。
+推送触发构建已恢复（2026-10-08 20:00 重新授权 GitHub 后）。只有推送后 2 分钟内没有构建，才用 API 手动起构建（见 AUTHORING-SPEC.md 第 4 节）。
 
 ### 手动部署
 
@@ -82,5 +100,7 @@ python3 tools/build.py
 npx wrangler deploy
 ```
 
-密钥只在 Cloudflare 上，不进仓库：`TURNSTILE_SECRET`、`ADMIN_TOKEN`、`IP_SALT`。
+密钥只在 Cloudflare 上，不进仓库：`TURNSTILE_SECRET`、`IP_SALT`、`OWNER_TOKEN_SHA256`、`AGENT_TOKEN_SHA256`（`ADMIN_TOKEN` 是 v1 的，已不再使用）。
+Cloudflare 上只存令牌的 SHA-256（小写十六进制）。原始令牌只在盒子上的 `/home/box/.config/thoughts/secrets.env`（权限 600，键 `OWNER_TOKEN`、`AGENT_TOKEN`）。
+换令牌：生成新随机值 → 写进 secrets.env → 把它的 SHA-256 设为对应密钥（`wrangler secret put OWNER_TOKEN_SHA256` 或 API）。旧令牌立即失效。
 `wrangler deploy` 会保留已有密钥。
