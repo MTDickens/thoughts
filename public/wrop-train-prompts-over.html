@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WROP 训练提示词：OVER 有多少 · thoughts</title>
+<meta name="description" content="训练数据与 prompt.txt 已公开。抽样 3,000 条后，照搬脚本标签 OVER 约 65%；复核改判后约 80%–94%。另有一处口径待你定。">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f7f6f2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css">
+<script src="/app.js" defer></script>
+</head>
+<body data-page="wrop-train-prompts-over">
+<a class="skip" href="#main">跳到正文</a>
+<div class="progress" aria-hidden="true"><span id="progress-bar"></span></div>
+<nav class="topnav" aria-label="站点"><div class="topnav-inner"><a class="brand" href="/">thoughts</a><div class="topnav-links"><a href="/wrop-improvement-directions" title="WROP 后续改进方向">改进方向</a><a href="/wrop-metrics-zh" title="WROP 评测指标：是什么、怎么算、哪里弱">评测指标</a><a href="/wrop-rerun-cost" title="WROP 改 prompt 后重跑：时间和算力估算">重跑成本</a><a href="/wrop-h3-nvidia-speed" title="MiniMax H3 在 NVIDIA 上能跑多快：对 WROP 重跑的影响">H3 加速</a><a href="/wrop-wan-speed" title="用 Wan 重跑 WROP：能跑多快、要花多少钱">Wan 重跑速度</a><a href="/wrop-train-prompts-over" aria-current="page" title="WROP 训练提示词：OVER 有多少">训练 OVER</a><a href="/physiq-vs-wrop" title="Physics-IQ vs Object Permanence：名次对照">两榜对照</a></div></div></nav>
+
+<header class="hero">
+  <div class="hero-inner" data-section="intro" id="intro">
+    <p class="eyebrow">thoughts.ycjian.com · 研究笔记</p>
+    <h1>WROP 训练提示词：OVER 有多少</h1>
+    <p class="lead">日期：2026-10-09（新加坡时间）
+范围：只做调查。不改任何作者文件。</p>
+    <ul class="chips" aria-label="概要"><li>训练数据已公开</li><li>抽样 3000</li><li>OVER 65%→80%</li><li>待定悬空口径</li><li>选中文字即可评论</li></ul>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc" aria-label="目录">
+    <p class="toc-title">目录</p>
+    <ol><li><a href="#s0"><span class="toc-n">1</span><span class="toc-t">一句话结论</span></a></li><li><a href="#s1"><span class="toc-n">2</span><span class="toc-t">发布了吗</span></a></li><li><a href="#s2"><span class="toc-n">3</span><span class="toc-t">怎么抽样</span></a></li><li><a href="#s3"><span class="toc-n">4</span><span class="toc-t">训练提示词和脚本正文一样吗</span></a></li><li><a href="#s4"><span class="toc-n">5</span><span class="toc-t">结果：照搬 197 条审查的标签</span></a></li><li><a href="#s5"><span class="toc-n">6</span><span class="toc-t">复核：197 条审查里的 OK 不一致</span></a></li><li><a href="#s6"><span class="toc-n">7</span><span class="toc-t">分族结果（训练集抽样）</span></a></li><li><a href="#s7"><span class="toc-n">8</span><span class="toc-t">没查到或没做的</span></a></li><li><a href="#s8"><span class="toc-n">9</span><span class="toc-t">文件</span></a></li></ol>
+    <a class="toc-comments" href="#comments">全部评论 <span class="count" id="toc-count">0</span></a>
+  </nav>
+
+  <main id="main">
+    <article class="doc">
+<section class="card" id="s0" data-section="s0" aria-labelledby="s0-h"><h2 id="s0-h"><span class="badge" aria-hidden="true">1</span><span class="h-num">1. </span><span class="h-t">一句话结论</span></h2>
+<ul>
+<li><strong>训练数据和训练提示词都已公开。</strong> 视频可以直接下载。每个样本旁边有一个 <code>prompt.txt</code>。</li>
+<li>我们抽了 <strong>3,000 条</strong>训练提示词（150 个出题器 × 20 条）。</li>
+<li>照搬 197 条脚本审查的标签：<strong>OVER 65.2%</strong>，OK 34.8%，UNDER 0%。</li>
+<li>197 条脚本审查是 <strong>OVER 72.1%</strong>。训练集更低，原因是权重不同，不是文字不同（见第 5 节）。</li>
+<li>训练提示词的正文就是那 197 条脚本正文。只换了颜色词，并加了固定前缀。</li>
+<li>复核发现：197 条审查的 55 条 OK 里，有 23 条含有同类「结果说教」。按同一规则改判后，训练集 OVER 是 <strong>79.6%</strong>。若「不会悬空」也算 OVER，则是 <strong>93.7%</strong>。</li>
+</ul>
+</section>
+<section class="card" id="s1" data-section="s1" aria-labelledby="s1-h"><h2 id="s1-h"><span class="badge" aria-hidden="true">2</span><span class="h-num">2. </span><span class="h-t">发布了吗</span></h2>
+<div class="table-wrap wide" data-anchor-id="s1-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">项目</th>
+<th scope="col">结果</th>
+<th scope="col">出处</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="项目"><span class="cv">训练数据</span></td>
+<td data-label="结果"><span class="cv"><strong>已发布</strong>，公开，无门槛（<code>gated: false</code>）</span></td>
+<td data-label="出处"><span class="cv">https://huggingface.co/datasets/Hokin/object-permanence</span></td>
+</tr>
+<tr><td class="k" data-label="项目"><span class="cv">文件</span></td>
+<td data-label="结果"><span class="cv">150 个 tar，每个出题器一个</span></td>
+<td data-label="出处"><span class="cv"><code>train/&lt;task&gt;_task.tar</code></span></td>
+</tr>
+<tr><td class="k" data-label="项目"><span class="cv">大小</span></td>
+<td data-label="结果"><span class="cv">共 214,099,660,800 字节（约 214 GB）；单个 0.69–4.07 GB；不压缩</span></td>
+<td data-label="出处"><span class="cv">HF API</span></td>
+</tr>
+<tr><td class="k" data-label="项目"><span class="cv">校验文件</span></td>
+<td data-label="结果"><span class="cv"><code>train/checksums.txt</code>（15,604 字节）：每个 tar 的 sha256、文件名、成员数 50,000</span></td>
+<td data-label="出处"><span class="cv">https://huggingface.co/datasets/Hokin/object-permanence/blob/main/train/checksums.txt</span></td>
+</tr>
+<tr><td class="k" data-label="项目"><span class="cv">每个样本</span></td>
+<td data-label="结果"><span class="cv">5 个文件：<code>input_video.mp4</code>、<code>target_video.mp4</code>、<code>prompt.txt</code>、<code>trajectory.npz</code>、<code>metadata.json</code></span></td>
+<td data-label="出处"><span class="cv">HF 说明页；我们读过的 tar 内容</span></td>
+</tr>
+<tr><td class="k" data-label="项目"><span class="cv">视频</span></td>
+<td data-label="结果"><span class="cv">1280×720，24 fps；输入 60 帧，目标 60 帧</span></td>
+<td data-label="出处"><span class="cv">HF 说明页</span></td>
+</tr>
+<tr><td class="k" data-label="项目"><span class="cv">训练提示词</span></td>
+<td data-label="结果"><span class="cv"><strong>已发布。</strong> 在每个样本的 <code>prompt.txt</code> 里</span></td>
+<td data-label="出处"><span class="cv">我们抽到的 3,000 条</span></td>
+</tr>
+<tr><td class="k" data-label="项目"><span class="cv"><code>metadata.json</code></span></td>
+<td data-label="结果"><span class="cv"><strong>没有</strong>提示词正文。只有 <code>source_script</code>、<code>seed</code> 等参数</span></td>
+<td data-label="出处"><span class="cv">我们读过的样本</span></td>
+</tr>
+<tr><td class="k" data-label="项目"><span class="cv">许可证</span></td>
+<td data-label="结果"><span class="cv">CC BY-NC 4.0</span></td>
+<td data-label="出处"><span class="cv">HF 说明页</span></td>
+</tr>
+<tr><td class="k" data-label="项目"><span class="cv">GitHub</span></td>
+<td data-label="结果"><span class="cv">README 链到 HF 的 &quot;Training data (1.5M)&quot;。仓库里只有出题器脚本，没有数据</span></td>
+<td data-label="出处"><span class="cv">https://github.com/hokindeng/object-permanence</span></td>
+</tr>
+<tr><td class="k" data-label="项目"><span class="cv">论文</span></td>
+<td data-label="结果"><span class="cv">&quot;We release this 1.5M-sample training corpus&quot;（第 1 页）</span></td>
+<td data-label="出处"><span class="cv">https://arxiv.org/abs/2609.28654</span></td>
+</tr>
+<tr><td class="k" data-label="项目"><span class="cv">项目网站</span></td>
+<td data-label="结果"><span class="cv">&quot;Data&quot; 链接打开的是同一个 HF 数据集页</span></td>
+<td data-label="出处"><span class="cv">https://www.object-permanence.world/data</span></td>
+</tr>
+</tbody>
+</table></div>
+<p data-anchor-id="s1-p-05342e">我们怎么确认能下载：</p>
+<ul>
+<li>150 个 tar 都能不登录访问。HF 跳转到 CDN。CDN 支持按字节范围读取。</li>
+<li>我们对 150 个 tar 都做了范围读取。150 个全部成功，取到了提示词。</li>
+<li>我们<strong>没有</strong>下载全部 214 GB。所以没有核对 sha256。</li>
+</ul>
+<p data-anchor-id="s1-p-c6fbed">一个重要限制：</p>
+<ul>
+<li>论文第 7 页说，PWM-WROP 用的是 &quot;an earlier render of the same 150 generators&quot;。</li>
+<li>所以公开的训练集<strong>不是</strong> PWM-WROP 真正用过的那一份。那一份没有公开。</li>
+<li>公开的提示词和 PWM-WROP 见过的提示词是否一字不差，无法核实。两者来自同一批出题器。</li>
+</ul>
+</section>
+<section class="card" id="s2" data-section="s2" aria-labelledby="s2-h"><h2 id="s2-h"><span class="badge" aria-hidden="true">3</span><span class="h-num">3. </span><span class="h-t">怎么抽样</span></h2>
+<div class="table-wrap" data-anchor-id="s2-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">项目</th>
+<th scope="col">做法</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="项目"><span class="cv">分层</span></td>
+<td data-label="做法"><span class="cv">按出题器分层。150 个出题器，每个 20 条。共 3,000 条</span></td>
+</tr>
+<tr><td class="k" data-label="项目"><span class="cv">随机方式</span></td>
+<td data-label="做法"><span class="cv">在每个 tar 里随机选字节位置。找到下一个 tar 头。再跳到同一样本或下一个样本的 <code>prompt.txt</code></span></td>
+</tr>
+<tr><td class="k" data-label="项目"><span class="cv">去重</span></td>
+<td data-label="做法"><span class="cv">同一样本只取一次</span></td>
+</tr>
+<tr><td class="k" data-label="项目"><span class="cv">覆盖</span></td>
+<td data-label="做法"><span class="cv">样本编号均匀分布在 0–9999（四段分别 768 / 723 / 739 / 770 条）</span></td>
+</tr>
+<tr><td class="k" data-label="项目"><span class="cv">偏差</span></td>
+<td data-label="做法"><span class="cv">按字节选位置，大视频的样本被抽中的机会略高。我们认为这对提示词影响很小</span></td>
+</tr>
+<tr><td class="k" data-label="项目"><span class="cv">对齐</span></td>
+<td data-label="做法"><span class="cv">用 <code>metadata.json</code> 里的 <code>source_script</code> 对到 197 条脚本（2,876 条）。缺 metadata 的用文字对齐（124 条）</span></td>
+</tr>
+<tr><td class="k" data-label="项目"><span class="cv">覆盖的脚本</span></td>
+<td data-label="做法"><span class="cv">197 条里抽到 196 条。没抽到：G05 的 <code>pb_task_00000027</code>（原标签 OVER）</span></td>
+</tr>
+</tbody>
+</table></div>
+</section>
+<section class="card" id="s3" data-section="s3" aria-labelledby="s3-h"><h2 id="s3-h"><span class="badge" aria-hidden="true">4</span><span class="h-num">4. </span><span class="h-t">训练提示词和脚本正文一样吗</span></h2>
+<div class="table-wrap" data-anchor-id="s3-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">结果</th>
+<th class="num" scope="col">条数</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="结果"><span class="cv">有前缀 &quot;Continue this scene as a short video.&quot;</span></td>
+<td class="num" data-label="条数"><span class="cv">3,000 / 3,000</span></td>
+</tr>
+<tr><td class="k" data-label="结果"><span class="cv">去掉前缀后，与 197 条之一相同（忽略颜色词和 a/an）</span></td>
+<td class="num" data-label="条数"><span class="cv">2,980 / 3,000</span></td>
+</tr>
+<tr><td class="k" data-label="结果"><span class="cv">不完全相同</span></td>
+<td class="num" data-label="条数"><span class="cv">20（全是 G29）</span></td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li>G29 的 197 条记录只是代码里的一段模板。真实训练提示词更长。</li>
+<li>真实 G29 提示词多了一句：&quot;It must not disappear, teleport, duplicate, switch to the other ball's track, or emerge from the other ball's exit.&quot;</li>
+<li>所以 G29 在训练集里的 OVER 更重，不是更轻。</li>
+<li>换颜色词不改变 OVER / OK 判断。197 条审查里每条 OVER 的原话，在对应的 1,957 条训练提示词里都还在（1,957 / 1,957）。</li>
+</ul>
+</section>
+<section class="card" id="s4" data-section="s4" aria-labelledby="s4-h"><h2 id="s4-h"><span class="badge" aria-hidden="true">5</span><span class="h-num">5. </span><span class="h-t">结果：照搬 197 条审查的标签</span></h2>
+<p data-anchor-id="s4-p-0a88a4">规则和 <code>prompt-ambiguity-197.md</code> 一样：</p>
+<ul>
+<li>Max 的惯性规则：已经在动的挡板「移开」就是继续往前走。这不算 UNDER。</li>
+<li>OVER = 文字里说教物体恒存、身份、颜色、不能穿过等结果。</li>
+</ul>
+<div class="table-wrap wide" data-anchor-id="s4-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">类别</th>
+<th class="num" scope="col">训练集抽样（3,000）</th>
+<th class="num" scope="col">197 条脚本</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="类别"><span class="cv">OK</span></td>
+<td class="num" data-label="训练集抽样（3,000）"><span class="cv">1,043（34.8%）</span></td>
+<td class="num" data-label="197 条脚本"><span class="cv">55（27.9%）</span></td>
+</tr>
+<tr><td class="k" data-label="类别"><span class="cv"><strong>OVER</strong></span></td>
+<td class="num" data-label="训练集抽样（3,000）"><span class="cv"><strong>1,957（65.2%）</strong></span></td>
+<td class="num" data-label="197 条脚本"><span class="cv"><strong>142（72.1%）</strong></span></td>
+</tr>
+<tr><td class="k" data-label="类别"><span class="cv">UNDER</span></td>
+<td class="num" data-label="训练集抽样（3,000）"><span class="cv">0</span></td>
+<td class="num" data-label="197 条脚本"><span class="cv">0</span></td>
+</tr>
+<tr><td class="k" data-label="类别"><span class="cv">MIXED</span></td>
+<td class="num" data-label="训练集抽样（3,000）"><span class="cv">0</span></td>
+<td class="num" data-label="197 条脚本"><span class="cv">0</span></td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li>95% 置信区间：65.0%–65.4%。这个区间只含抽样误差，不含判断误差。区间很窄，因为 147 个出题器里 20 条全同一类。</li>
+<li>只有 3 个出题器内部有 OK 也有 OVER：G05（10/20 OVER）、G06（15/20）、G24（12/20）。</li>
+<li>另一种算法：假设每个出题器内各脚本出现机会相同。结果是 65.4%。和抽样结果一致。</li>
+</ul>
+<p data-anchor-id="s4-p-87aa21">为什么训练集 OVER（65.2%）比 197 条（72.1%）低：</p>
+<ul>
+<li>训练集给每个出题器 10,000 条，不管它有几条脚本。</li>
+<li>OVER 多的族（OP-1、OP-2）脚本多。在 197 条里它们占比高。</li>
+<li>OK 多的族（掉落、碰撞）多是一个出题器一条脚本。在训练集里它们的占比变高。</li>
+<li>文字本身没变少。</li>
+</ul>
+</section>
+<section class="card" id="s5" data-section="s5" aria-labelledby="s5-h"><h2 id="s5-h"><span class="badge" aria-hidden="true">6</span><span class="h-num">6. </span><span class="h-t">复核：197 条审查里的 OK 不一致</span></h2>
+<p data-anchor-id="s5-p-42a5e4">我们逐条重读了 197 条里的 55 条 OK。有些 OK 含有和 OVER 同类的句子。197 条审查在别处把这类句子算作 OVER。</p>
+<div class="table-wrap wide stack" data-anchor-id="s5-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">组</th>
+<th class="num" scope="col">条数</th>
+<th scope="col">例句</th>
+<th scope="col">197 条审查里的同类 OVER 例子</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="组"><span class="cv">P：恒存 / 身份 / 不能穿过 / 「不是回到原位」</span></td>
+<td class="num" data-label="条数"><span class="cv">23</span></td>
+<td data-label="例句"><span class="cv">G62 &quot;Neither ball changes colour, and both remain present the whole time&quot;；G38 &quot;The same red bob should later emerge&quot;；G73 &quot;none appear or vanish&quot;；G83 &quot;not back to its original world position&quot;；G100 &quot;Both balls remain; neither passes through the other&quot;</span></td>
+<td data-label="197 条审查里的同类 OVER 例子"><span class="cv">G85 &quot;not back to its original position&quot;；G14 &quot;continues to exist while hidden, and emerges onto the same …&quot;；G01 &quot;must not pass through the cap&quot;</span></td>
+</tr>
+<tr><td class="k" data-label="组"><span class="cv">S：只说「不会悬空」</span></td>
+<td class="num" data-label="条数"><span class="cv">22</span></td>
+<td data-label="例句"><span class="cv">G113 &quot;Nothing remains suspended&quot;；G149 &quot;It is never suspended in mid-air&quot;；G06 &quot;should pass across successfully without falling or stopping&quot;</span></td>
+<td data-label="197 条审查里的同类 OVER 例子"><span class="cv">197 条的 OVER 原话里<strong>没有</strong>「悬空」这一类。要不要算 OVER，请 Max 定</span></td>
+</tr>
+<tr><td class="k" data-label="组"><span class="cv">仍是 OK</span></td>
+<td class="num" data-label="条数"><span class="cv">10</span></td>
+<td data-label="例句"><span class="cv">G24、G67、G71、G72、G98、G108、G110、G111；边界：G88、G128</span></td>
+<td data-label="197 条审查里的同类 OVER 例子"><span class="cv">—</span></td>
+</tr>
+</tbody>
+</table></div>
+<p data-anchor-id="s5-p-2cb3a2">明细：<code>/workspace/hokin-15d/train-prompts/strict-ok-recheck.json</code>（每条 OK 的改判和原话）。</p>
+<p data-anchor-id="s5-p-b26e28">按复核结果重算：</p>
+<div class="table-wrap wide" data-anchor-id="s5-table-2" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">口径</th>
+<th class="num" scope="col">训练集 OVER</th>
+<th class="num" scope="col">197 条脚本 OVER</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="口径"><span class="cv">照搬 197 条标签</span></td>
+<td class="num" data-label="训练集 OVER"><span class="cv">65.2%</span></td>
+<td class="num" data-label="197 条脚本 OVER"><span class="cv">142 / 197（72.1%）</span></td>
+</tr>
+<tr><td class="k" data-label="口径"><span class="cv">P 组改为 OVER</span></td>
+<td class="num" data-label="训练集 OVER"><span class="cv"><strong>79.6%</strong>（2,387 / 3,000）</span></td>
+<td class="num" data-label="197 条脚本 OVER"><span class="cv">165 / 197（83.8%）</span></td>
+</tr>
+<tr><td class="k" data-label="口径"><span class="cv">P 组 + S 组都改为 OVER</span></td>
+<td class="num" data-label="训练集 OVER"><span class="cv"><strong>93.7%</strong>（2,812 / 3,000）</span></td>
+<td class="num" data-label="197 条脚本 OVER"><span class="cv">187 / 197（94.9%）</span></td>
+</tr>
+</tbody>
+</table></div>
+<p data-anchor-id="s5-p-8cd104">UNDER 在三种口径下都是 0。我们没有新增 UNDER。</p>
+</section>
+<section class="card" id="s6" data-section="s6" aria-labelledby="s6-h"><h2 id="s6-h"><span class="badge" aria-hidden="true">7</span><span class="h-num">7. </span><span class="h-t">分族结果（训练集抽样）</span></h2>
+<div class="table-wrap wide stack xwide" data-anchor-id="s6-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">族</th>
+<th class="num" scope="col">出题器</th>
+<th class="num" scope="col">条数</th>
+<th class="num" scope="col">照搬标签</th>
+<th class="num" scope="col">P 改判</th>
+<th class="num" scope="col">P+S 改判</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="族"><span class="cv">OP-1 Baillargeon 遮挡</span></td>
+<td class="num" data-label="出题器"><span class="cv">26</span></td>
+<td class="num" data-label="条数"><span class="cv">520</span></td>
+<td class="num" data-label="照搬标签"><span class="cv">92.3%</span></td>
+<td class="num" data-label="P 改判"><span class="cv">100%</span></td>
+<td class="num" data-label="P+S 改判"><span class="cv">100%</span></td>
+</tr>
+<tr><td class="k" data-label="族"><span class="cv">OP-2 静态遮挡</span></td>
+<td class="num" data-label="出题器"><span class="cv">29</span></td>
+<td class="num" data-label="条数"><span class="cv">580</span></td>
+<td class="num" data-label="照搬标签"><span class="cv">98.6%</span></td>
+<td class="num" data-label="P 改判"><span class="cv">98.6%</span></td>
+<td class="num" data-label="P+S 改判"><span class="cv">98.6%</span></td>
+</tr>
+<tr><td class="k" data-label="族"><span class="cv">OP-3 容器恒存</span></td>
+<td class="num" data-label="出题器"><span class="cv">35</span></td>
+<td class="num" data-label="条数"><span class="cv">700</span></td>
+<td class="num" data-label="照搬标签"><span class="cv">71.4%</span></td>
+<td class="num" data-label="P 改判"><span class="cv">85.7%</span></td>
+<td class="num" data-label="P+S 改判"><span class="cv">85.7%</span></td>
+</tr>
+<tr><td class="k" data-label="族"><span class="cv">OS-1 阻挡</span></td>
+<td class="num" data-label="出题器"><span class="cv">20</span></td>
+<td class="num" data-label="条数"><span class="cv">400</span></td>
+<td class="num" data-label="照搬标签"><span class="cv">42.5%</span></td>
+<td class="num" data-label="P 改判"><span class="cv">65.0%</span></td>
+<td class="num" data-label="P+S 改判"><span class="cv">80.0%</span></td>
+</tr>
+<tr><td class="k" data-label="族"><span class="cv">OS-2 掉落</span></td>
+<td class="num" data-label="出题器"><span class="cv">21</span></td>
+<td class="num" data-label="条数"><span class="cv">420</span></td>
+<td class="num" data-label="照搬标签"><span class="cv">22.6%</span></td>
+<td class="num" data-label="P 改判"><span class="cv">22.6%</span></td>
+<td class="num" data-label="P+S 改判"><span class="cv">100%</span></td>
+</tr>
+<tr><td class="k" data-label="族"><span class="cv">OS-3 碰撞</span></td>
+<td class="num" data-label="出题器"><span class="cv">19</span></td>
+<td class="num" data-label="条数"><span class="cv">380</span></td>
+<td class="num" data-label="照搬标签"><span class="cv">36.8%</span></td>
+<td class="num" data-label="P 改判"><span class="cv">89.5%</span></td>
+<td class="num" data-label="P+S 改判"><span class="cv">100%</span></td>
+</tr>
+<tr><td class="k" data-label="族"><span class="cv"><strong>合计</strong></span></td>
+<td class="num" data-label="出题器"><span class="cv"><strong>150</strong></span></td>
+<td class="num" data-label="条数"><span class="cv"><strong>3,000</strong></span></td>
+<td class="num" data-label="照搬标签"><span class="cv"><strong>65.2%</strong></span></td>
+<td class="num" data-label="P 改判"><span class="cv"><strong>79.6%</strong></span></td>
+<td class="num" data-label="P+S 改判"><span class="cv"><strong>93.7%</strong></span></td>
+</tr>
+</tbody>
+</table></div>
+</section>
+<section class="card" id="s7" data-section="s7" aria-labelledby="s7-h"><h2 id="s7-h"><span class="badge" aria-hidden="true">8</span><span class="h-num">8. </span><span class="h-t">没查到或没做的</span></h2>
+<ul>
+<li>没有核对 sha256。没有下载全部 214 GB。</li>
+<li>PWM-WROP 真正训练用的「earlier render」没有公开。它的提示词无法核对。</li>
+<li>第 6 节的改判是我们按同一规则做的判断。作者没有给过判断标准。</li>
+<li>「不会悬空」算不算 OVER，197 条审查没有先例。我们单列出来。</li>
+</ul>
+</section>
+<section class="card" id="s8" data-section="s8" aria-labelledby="s8-h"><h2 id="s8-h"><span class="badge" aria-hidden="true">9</span><span class="h-num">9. </span><span class="h-t">文件</span></h2>
+<div class="table-wrap" data-anchor-id="s8-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">文件</th>
+<th scope="col">内容</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="文件"><span class="cv"><code>/workspace/hokin-15d/train-prompts/sample.py</code></span></td>
+<td data-label="内容"><span class="cv">抽样脚本（HF 范围读取）</span></td>
+</tr>
+<tr><td class="k" data-label="文件"><span class="cv"><code>/workspace/hokin-15d/train-prompts/samples.jsonl</code></span></td>
+<td data-label="内容"><span class="cv">3,000 条原始提示词、样本路径、<code>source_script</code>、seed</span></td>
+</tr>
+<tr><td class="k" data-label="文件"><span class="cv"><code>/workspace/hokin-15d/train-prompts/classify.py</code>、<code>judge.py</code>、<code>strict.py</code></span></td>
+<td data-label="内容"><span class="cv">对齐和分类脚本</span></td>
+</tr>
+<tr><td class="k" data-label="文件"><span class="cv"><code>/workspace/hokin-15d/train-prompts/judged.json</code></span></td>
+<td data-label="内容"><span class="cv">每条的三种口径标签</span></td>
+</tr>
+<tr><td class="k" data-label="文件"><span class="cv"><code>/workspace/hokin-15d/train-prompts/strict-ok-recheck.json</code></span></td>
+<td data-label="内容"><span class="cv">55 条 OK 的复核明细</span></td>
+</tr>
+</tbody>
+</table></div>
+</section>
+    </article>
+
+    <nav class="more" aria-label="其他页面">
+      <ul><li><a class="more-card" href="/wrop-improvement-directions"><span class="more-k">另一篇</span><span class="more-t">WROP 后续改进方向</span></a></li><li><a class="more-card" href="/wrop-metrics-zh"><span class="more-k">另一篇</span><span class="more-t">WROP 评测指标：是什么、怎么算、哪里弱</span></a></li><li><a class="more-card" href="/wrop-rerun-cost"><span class="more-k">另一篇</span><span class="more-t">WROP 改 prompt 后重跑：时间和算力估算</span></a></li><li><a class="more-card" href="/wrop-h3-nvidia-speed"><span class="more-k">另一篇</span><span class="more-t">MiniMax H3 在 NVIDIA 上能跑多快：对 WROP 重跑的影响</span></a></li><li><a class="more-card" href="/wrop-wan-speed"><span class="more-k">另一篇</span><span class="more-t">用 Wan 重跑 WROP：能跑多快、要花多少钱</span></a></li><li><a class="more-card" href="/physiq-vs-wrop"><span class="more-k">另一篇</span><span class="more-t">Physics-IQ vs Object Permanence：名次对照</span></a></li><li><a class="more-card" href="/"><span class="more-k">首页</span><span class="more-t">全部页面</span></a></li></ul>
+    </nav>
+
+    <section class="comments" id="comments" aria-labelledby="comments-h">
+      <h2 id="comments-h">评论 <span class="count" id="list-count">0</span></h2>
+      <p class="hint">选中正文里的文字。点「评论」按钮。评论会贴在那段文字上。</p>
+      <p class="hint">无需登录。任何人都可以回复、编辑、删除、解决任何评论。昵称可不填，会记在本浏览器里。</p>
+      <button type="button" class="btn ghost" id="page-comment">评论整篇</button>
+      <p class="empty" id="list-empty">还没有评论。</p>
+      <ol class="thread-list" id="thread-list"></ol>
+    </section>
+  </main>
+</div>
+
+<footer class="foot">
+  <p>来源：<code>content/wrop-train-prompts-over.md</code>。更新于 2026-10-10。</p>
+  <p>托管于 Cloudflare。评论公开，任何人可改。</p>
+</footer>
+
+<button type="button" class="sel-btn" id="sel-btn" hidden>评论</button>
+
+<div class="scrim" id="scrim" hidden></div>
+<aside class="panel" id="panel" role="dialog" aria-modal="true" aria-labelledby="panel-h" hidden>
+  <div class="panel-head">
+    <h2 id="panel-h">评论</h2>
+    <button type="button" class="icon-btn" id="panel-close" aria-label="关闭">×</button>
+  </div>
+  <div class="panel-body">
+    <blockquote class="panel-quote" id="panel-quote" hidden></blockquote>
+    <ol class="thread" id="panel-thread"></ol>
+    <form class="composer" id="composer" novalidate>
+      <label class="field" id="f-nick-field">
+        <span>昵称（可不填）</span>
+        <input type="text" id="f-nick" maxlength="40" autocomplete="nickname" placeholder="匿名">
+      </label>
+      <label class="field">
+        <span id="f-body-label">评论</span>
+        <textarea id="f-body" maxlength="2000" rows="4" required placeholder="写下你的看法。"></textarea>
+      </label>
+      <div class="form-foot">
+        <span class="counter" id="f-count">0 / 2000</span>
+        <button type="submit" class="btn" id="f-submit">发布</button>
+      </div>
+      <p class="form-msg" id="f-msg" role="status" aria-live="polite"></p>
+    </form>
+  </div>
+</aside>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

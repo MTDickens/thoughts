@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>用 Wan 重跑 WROP：能跑多快、要花多少钱 · thoughts</title>
+<meta name="description" content="澄清论文里的 Wan 3.0 Prime 与开源 Wan/VACE 的区别，估算 API 与 8×B300 质量安全重跑 300/600 道的时间和费用，并与 H3 对照。">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f7f6f2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css">
+<script src="/app.js" defer></script>
+</head>
+<body data-page="wrop-wan-speed">
+<a class="skip" href="#main">跳到正文</a>
+<div class="progress" aria-hidden="true"><span id="progress-bar"></span></div>
+<nav class="topnav" aria-label="站点"><div class="topnav-inner"><a class="brand" href="/">thoughts</a><div class="topnav-links"><a href="/wrop-improvement-directions" title="WROP 后续改进方向">改进方向</a><a href="/wrop-metrics-zh" title="WROP 评测指标：是什么、怎么算、哪里弱">评测指标</a><a href="/wrop-rerun-cost" title="WROP 改 prompt 后重跑：时间和算力估算">重跑成本</a><a href="/wrop-h3-nvidia-speed" title="MiniMax H3 在 NVIDIA 上能跑多快：对 WROP 重跑的影响">H3 加速</a><a href="/wrop-wan-speed" aria-current="page" title="用 Wan 重跑 WROP：能跑多快、要花多少钱">Wan 重跑速度</a><a href="/wrop-train-prompts-over" title="WROP 训练提示词：OVER 有多少">训练 OVER</a><a href="/physiq-vs-wrop" title="Physics-IQ vs Object Permanence：名次对照">两榜对照</a></div></div></nav>
+
+<header class="hero">
+  <div class="hero-inner" data-section="intro" id="intro">
+    <p class="eyebrow">thoughts.ycjian.com · 研究笔记</p>
+    <h1>用 Wan 重跑 WROP：能跑多快、要花多少钱</h1>
+    <p class="lead">日期：2026-10-09（新加坡时间）。本文和 <a href="/wrop-h3-nvidia-speed">H3 加速调研</a> 配套。所有“估算”都是推算，不是实测。</p>
+    <ul class="chips" aria-label="概要"><li>Wan 3.0 Prime</li><li>VACE-14B</li><li>API 约 $230</li><li>自跑约 $180</li><li>估算非实测</li><li>选中文字即可评论</li></ul>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc" aria-label="目录">
+    <p class="toc-title">目录</p>
+    <ol><li><a href="#s0"><span class="toc-n">0</span><span class="toc-t">结论</span></a></li><li><a href="#s1"><span class="toc-n">1</span><span class="toc-t">名字对照：哪个是哪个</span></a></li><li><a href="#s2"><span class="toc-n">2</span><span class="toc-t">质量安全的速度</span></a></li><li><a href="#s3"><span class="toc-n">3</span><span class="toc-t">300 道和 600 道：时间和费用</span></a></li><li><a href="#s4"><span class="toc-n">4</span><span class="toc-t">激进 / 质量未验证的加速（不进推荐报价）</span></a></li><li><a href="#s5"><span class="toc-n">5</span><span class="toc-t">和 H3 并排比较</span></a></li><li><a href="#s6"><span class="toc-n">6</span><span class="toc-t">还没确定的事</span></a></li><li><a href="#s7"><span class="toc-n">7</span><span class="toc-t">来源</span></a></li></ol>
+    <a class="toc-comments" href="#comments">全部评论 <span class="count" id="toc-count">0</span></a>
+  </nav>
+
+  <main id="main">
+    <article class="doc">
+<section class="card" id="s0" data-section="s0" aria-labelledby="s0-h"><h2 id="s0-h"><span class="badge" aria-hidden="true">0</span><span class="h-num">0. </span><span class="h-t">结论</span></h2>
+<ul>
+<li><strong>论文里的 Wan 是 Wan 3.0 Prime，不是“Wan Extended”。</strong> 它在表 1 里走 FAL API，类型是“参考视频生成”（reference-to-video），输出 1280×720、30 fps、90 帧。</li>
+<li><strong>“Extend”这个词来自别处。</strong> 同一张表里有 LTX-2.3 Extend 和 Grok Imagine (video extend)。另外，Wan 3.0 有一个“视频续写”模式（video extension），第三方平台把它挂成 <code>wan-3.0/video-extend</code> 接口。论文没有用这个模式。</li>
+<li><strong>Wan 3.0 Prime 没有公开权重，所以不能在 8×B300 上跑。</strong> 它只能走 API。Wan 能下载的最新权重仍是 Wan 2.2（2025-07）和 2026 年的 Animate-2 等专用模型。我们查了 Hugging Face 的 Wan-AI 组织，确认如此。</li>
+<li><strong>只想重跑论文里的同一个模型：走 API。</strong> 300 道约 <strong>$230</strong>，600 道（新旧 prompt 各一遍）约 <strong>$460</strong>。不用 GPU。墙钟时间取决于并发数，大约 1–5 小时。旧 prompt 的结果已经在论文的 HF 数据集里，所以只跑新 prompt 时是 300 道、约 $230。</li>
+<li><strong>想在 8×B300 上自己跑 Wan：只能换成开源的 Wan2.1-VACE-14B（或 Wan2.2-VACE-Fun）。</strong> 质量安全的中间估算（BF16、默认 50 步、8 个单卡副本、720p）：<strong>每段约 58 秒，300 道约 5.6 小时、约 $180；600 道约 11 小时、约 $345。</strong> 换成 480p：每段约 18 秒，300 道约 $60。</li>
+<li><strong>和 H3 比：自己跑 Wan 比 H3 慢约 1.7 倍、贵约 1.8 倍。</strong> H3 质量安全中间值是每段约 33 秒、300 道约 $100。原因是 Wan 的 VAE 压缩率低：同样 5 秒 720p，Wan 的序列约 7.6 万 token，H3 约 3.8 万 token。</li>
+<li><strong>NVIDIA 对 Wan 有官方优化，但最快的那条不算质量安全。</strong> MLPerf v6.1 里，NVIDIA DGX B300（8 卡）跑 Wan2.2 文生视频是每段约 16–18 秒。这条用了 FP8，而且只跑 20 步（官方默认 40 步）。它只用 VBench 总分证明质量（≥ 参考的 99%），没有证明物体恒存不变。所以它放在第 4 节。</li>
+</ul>
+</section>
+<section class="card" id="s1" data-section="s1" aria-labelledby="s1-h"><h2 id="s1-h"><span class="badge" aria-hidden="true">1</span><span class="h-num">1. </span><span class="h-t">名字对照：哪个是哪个</span></h2>
+<div class="table-wrap wide stack" data-anchor-id="s1-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">名字</th>
+<th scope="col">是什么</th>
+<th scope="col">有没有权重</th>
+<th scope="col">发布</th>
+<th scope="col">和 WROP 的关系</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="名字"><span class="cv"><strong>Wan 3.0 Prime</strong>（<code>wan3.0-video-prime</code>）</span></td>
+<td data-label="是什么"><span class="cv">Wan 3.0 的“加速版”。阿里说能力和标准版一致，“明显更快”，但没给倍数</span></td>
+<td data-label="有没有权重"><span class="cv"><strong>没有</strong>，只有 API</span></td>
+<td data-label="发布"><span class="cv">新加坡区 2026-08-20 上架</span></td>
+<td data-label="和 WROP 的关系"><span class="cv"><strong>论文表 1、表 2 用的就是它</strong>（Elo 1723.6，第 1 名并列）</span></td>
+</tr>
+<tr><td class="k" data-label="名字"><span class="cv">Wan 3.0（<code>wan3.0-video</code>）</span></td>
+<td data-label="是什么"><span class="cv">标准版，一个模型包含文生、图生、参考生成、编辑、续写</span></td>
+<td data-label="有没有权重"><span class="cv">没有</span></td>
+<td data-label="发布"><span class="cv">2026-08-06/07 公测</span></td>
+<td data-label="和 WROP 的关系"><span class="cv">论文没用</span></td>
+</tr>
+<tr><td class="k" data-label="名字"><span class="cv">“Wan 3.0 video-extend”</span></td>
+<td data-label="是什么"><span class="cv">Wan 3.0 的续写模式。阿里文档：传 <code>reference_video</code> + 带“续写/extend”意图的 prompt 即可触发</span></td>
+<td data-label="有没有权重"><span class="cv">没有</span></td>
+<td data-label="发布"><span class="cv">第三方接口 2026-10-04 上架（SandBase）</span></td>
+<td data-label="和 WROP 的关系"><span class="cv">论文没用。若改用它，接口类型就从“参考生成”变成“真续写”，不能和表 2 直接比</span></td>
+</tr>
+<tr><td class="k" data-label="名字"><span class="cv">Wan 2.5 / 2.6 / 2.7</span></td>
+<td data-label="是什么"><span class="cv">商业 API</span></td>
+<td data-label="有没有权重"><span class="cv">没有（2.5 曾说会开源，没兑现）</span></td>
+<td data-label="发布"><span class="cv">2025–2026</span></td>
+<td data-label="和 WROP 的关系"><span class="cv">无</span></td>
+</tr>
+<tr><td class="k" data-label="名字"><span class="cv"><strong>Wan 2.2</strong>（T2V-A14B、I2V-A14B、TI2V-5B）</span></td>
+<td data-label="是什么"><span class="cv">开源 MoE（两个 14B 专家，按步数切换）</span></td>
+<td data-label="有没有权重"><span class="cv"><strong>有</strong>，Apache 2.0</span></td>
+<td data-label="发布"><span class="cv">2025-07-28</span></td>
+<td data-label="和 WROP 的关系"><span class="cv">没有“视频参考续写”权重</span></td>
+</tr>
+<tr><td class="k" data-label="名字"><span class="cv"><strong>Wan2.1-VACE-14B</strong></span></td>
+<td data-label="是什么"><span class="cv">开源“全能编辑”模型，支持 <code>firstclip</code> 视频续写、重绘、参考</span></td>
+<td data-label="有没有权重"><span class="cv"><strong>有</strong>，Apache 2.0</span></td>
+<td data-label="发布"><span class="cv">2025-05-14</span></td>
+<td data-label="和 WROP 的关系"><span class="cv"><strong>论文的 Wan-VACE 14B 就是它</strong>（重绘模式，832×480 / 16 fps / 57 帧，Elo 1506.7，第 6 名）</span></td>
+</tr>
+<tr><td class="k" data-label="名字"><span class="cv">Wan2.2-VACE-Fun-A14B</span></td>
+<td data-label="是什么"><span class="cv">阿里 PAI 团队（非 Wan 官方）把 VACE 接到 Wan 2.2</span></td>
+<td data-label="有没有权重"><span class="cv">有</span></td>
+<td data-label="发布"><span class="cv">2025-09-10</span></td>
+<td data-label="和 WROP 的关系"><span class="cv">可替代 VACE-14B，未核实质量</span></td>
+</tr>
+</tbody>
+</table></div>
+<p data-anchor-id="s1-p-f0c2cb"><strong>论文结果的接口名有点矛盾。</strong> 表 1 写 Wan 3.0 Prime 是“参考视频生成”。但论文 HF 数据集的文件夹叫 <code>results/wan-3.0-prime-video-edit/</code>。Wan 3.0 Prime 在聚合平台上有三个相关接口：<code>reference-to-video</code>、<code>video-edit</code>、<code>video-extend</code>。所以论文到底调了哪个接口，没法百分之百确定。重跑前要先定下来。</p>
+</section>
+<section class="card" id="s2" data-section="s2" aria-labelledby="s2-h"><h2 id="s2-h"><span class="badge" aria-hidden="true">2</span><span class="h-num">2. </span><span class="h-t">质量安全的速度</span></h2>
+<h3>2.1 质量安全的标准（和 H3 报告一样）</h3>
+<p data-anchor-id="s2-p-52c7f1">只算这几种：</p>
+<ol class="steps">
+<li>多副本并行（8 张卡各跑一份模型）。模型不变。</li>
+<li>序列并行 / CFG 并行（Ulysses、Attention2D 等）。NVIDIA 测过：并行带来的偏差在“同一张卡重跑两次”的噪声范围内。</li>
+<li>算子融合、<code>torch.compile</code>、换注意力内核。只有舍入级差别。</li>
+<li>BF16，官方默认步数（Wan2.2-A14B 40 步，Wan2.1-14B / VACE 50 步），开 CFG。</li>
+</ol>
+<p data-anchor-id="s2-p-59de30"><strong>一个重要事实：快内核本身就不是逐位相同的。</strong> NVIDIA TensorRT-LLM 测过：同一张卡、同一个种子，用 FA4 重跑一次，LPIPS 就差 0.121；FA4 换成 PyTorch SDPA，差 0.21；开关 <code>torch.compile</code>，差 0.24。只有关掉快内核（SDPA + 不编译）才逐位相同。所以“质量安全”只能指“没有改算法”，不能指“像素完全一样”。这一点对 H3 报告同样适用。</p>
+<h3>2.2 公开测速（BF16、默认步数）</h3>
+<div class="table-wrap wide stack" data-anchor-id="s2-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">来源（日期）</th>
+<th scope="col">模型</th>
+<th scope="col">设置</th>
+<th scope="col">硬件</th>
+<th scope="col">每段时间</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="来源（日期）"><span class="cv">Wan2.2 官方 README（2025-07）</span></td>
+<td data-label="模型"><span class="cv">T2V-A14B / I2V-A14B</span></td>
+<td data-label="设置"><span class="cv">720p，81 帧，40 步</span></td>
+<td data-label="硬件"><span class="cv">8×H100</span></td>
+<td data-label="每段时间"><span class="cv">155.1 秒 / 159.0 秒</span></td>
+</tr>
+<tr><td class="k" data-label="来源（日期）"><span class="cv">同上</span></td>
+<td data-label="模型"><span class="cv">同上</span></td>
+<td data-label="设置"><span class="cv">480p，81 帧，40 步</span></td>
+<td data-label="硬件"><span class="cv">8×H100</span></td>
+<td data-label="每段时间"><span class="cv">51.5 秒 / 52.9 秒</span></td>
+</tr>
+<tr><td class="k" data-label="来源（日期）"><span class="cv">同上</span></td>
+<td data-label="模型"><span class="cv">同上</span></td>
+<td data-label="设置"><span class="cv">720p，81 帧</span></td>
+<td data-label="硬件"><span class="cv">1×H100（带 offload）</span></td>
+<td data-label="每段时间"><span class="cv">1041.5 秒 / 1055.9 秒</span></td>
+</tr>
+<tr><td class="k" data-label="来源（日期）"><span class="cv">Wan2.1 官方 README（2025-02）</span></td>
+<td data-label="模型"><span class="cv">T2V-14B / I2V-14B</span></td>
+<td data-label="设置"><span class="cv">720p，81 帧，50 步</span></td>
+<td data-label="硬件"><span class="cv">8×H100</span></td>
+<td data-label="每段时间"><span class="cv">287.9 秒 / 238.8 秒</span></td>
+</tr>
+<tr><td class="k" data-label="来源（日期）"><span class="cv">NVIDIA TensorRT-LLM VisualGen 博客 25</span></td>
+<td data-label="模型"><span class="cv">Wan2.2 T2V-A14B</span></td>
+<td data-label="设置"><span class="cv">720p，80 帧，40 步，BF16，FA4</span></td>
+<td data-label="硬件"><span class="cv"><strong>1×B200</strong></span></td>
+<td data-label="每段时间"><span class="cv"><strong>373.35 秒</strong>（去噪 370.8 秒）</span></td>
+</tr>
+<tr><td class="k" data-label="来源（日期）"><span class="cv">同上</span></td>
+<td data-label="模型"><span class="cv">同上</span></td>
+<td data-label="设置"><span class="cv">同上，CFG 并行</span></td>
+<td data-label="硬件"><span class="cv">2×B200</span></td>
+<td data-label="每段时间"><span class="cv">183.0 秒</span></td>
+</tr>
+<tr><td class="k" data-label="来源（日期）"><span class="cv">同上</span></td>
+<td data-label="模型"><span class="cv">同上</span></td>
+<td data-label="设置"><span class="cv">同上</span></td>
+<td data-label="硬件"><span class="cv">72×GB200（整机柜）</span></td>
+<td data-label="每段时间"><span class="cv">9.20 秒</span></td>
+</tr>
+<tr><td class="k" data-label="来源（日期）"><span class="cv">SGLang PR #28304（2026-06-16 合并）</span></td>
+<td data-label="模型"><span class="cv">Wan2.2 T2V-A14B</span></td>
+<td data-label="设置"><span class="cv">测试预设（文中未写分辨率）</span></td>
+<td data-label="硬件"><span class="cv">4×B200</span></td>
+<td data-label="每段时间"><span class="cv">107.6 秒</span></td>
+</tr>
+<tr><td class="k" data-label="来源（日期）"><span class="cv">NVIDIA Sol-Engine（只算无损融合部分）</span></td>
+<td data-label="模型"><span class="cv">Wan2.2-A14B</span></td>
+<td data-label="设置"><span class="cv">720p，81 帧，40 步</span></td>
+<td data-label="硬件"><span class="cv">1×GB200</span></td>
+<td data-label="每段时间"><span class="cv">449.67 秒 → 约 398 秒（融合 1.13 倍）</span></td>
+</tr>
+</tbody>
+</table></div>
+<p data-anchor-id="s2-p-157bfc"><strong>没有任何人公开 8×B300 的 BF16 测速。</strong> 我们从下面三点推出 1×B300 的单步时间：</p>
+<ul>
+<li>1×B200 BF16：370.8 ÷ 40 ≈ <strong>9.3 秒/步</strong>（720p、81 帧、含 CFG）。</li>
+<li>1×B300 FP8（VibeHPC，MLPerf 负载，20 步）：单段 122.5 秒，约 5.8–6.1 秒/步。FP8 比 BF16 快约 1.1–1.3 倍，所以 B300 BF16 约 6.5–7.8 秒/步。</li>
+<li><strong>中间取 7.5 秒/步</strong>（低 6.5，高 9.3）。</li>
+</ul>
+<h3>2.3 映射到 WROP</h3>
+<p data-anchor-id="s2-p-c87658">WROP 每道题：输入 60 帧（24 fps，2.5 秒），目标 60 帧（2.5 秒）。</p>
+<p data-anchor-id="s2-p-1f8793"><strong>推荐的开源跑法：Wan2.1-VACE-14B 续写（firstclip / 自定义 mask）。</strong></p>
+<ul>
+<li>把输入从 24 fps 重采样到 Wan 的 16 fps：40 帧。</li>
+<li>一次生成 81 帧：前 40 帧给定，后 41 帧由模型生成（约 2.56 秒）。正好覆盖 WROP 的目标长度。只需跑一次。</li>
+<li>这是真续写（和 PWM-WROP 同一类），不是论文里 Wan-VACE 的重绘模式。</li>
+<li>VACE-14B 比普通 14B 多 8 个 VACE 块（第 0、5、…、35 层），计算多约 20%。序列长度不变。</li>
+<li>默认 50 步，CFG 5.0，shift 16。</li>
+</ul>
+<p data-anchor-id="s2-p-a5f74f"><strong>每段时间估算（8 个单卡副本，BF16，默认步数）</strong></p>
+<div class="table-wrap wide stack" data-anchor-id="s2-table-2" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">情况</th>
+<th scope="col">跑法</th>
+<th scope="col">每段有效时间</th>
+<th scope="col">算法</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="情况"><span class="cv">低</span></td>
+<td data-label="跑法"><span class="cv">VACE-14B 续写，720p</span></td>
+<td data-label="每段有效时间"><span class="cv">约 48 秒</span></td>
+<td data-label="算法"><span class="cv">(50 × 6.5 × 1.15 + 8) ÷ 8</span></td>
+</tr>
+<tr><td class="k" data-label="情况"><span class="cv"><strong>中（推荐）</strong></span></td>
+<td data-label="跑法"><span class="cv"><strong>VACE-14B 续写，720p</strong></span></td>
+<td data-label="每段有效时间"><span class="cv"><strong>约 58 秒</strong></span></td>
+<td data-label="算法"><span class="cv">(50 × 7.5 × 1.2 + 10) ÷ 8</span></td>
+</tr>
+<tr><td class="k" data-label="情况"><span class="cv">高</span></td>
+<td data-label="跑法"><span class="cv">官方仓库代码，不编译，慢约 1.2 倍</span></td>
+<td data-label="每段有效时间"><span class="cv">约 86 秒</span></td>
+<td data-label="算法"><span class="cv">(50 × 9.3 × 1.2 × 1.2 + 15) ÷ 8</span></td>
+</tr>
+<tr><td class="k" data-label="情况"><span class="cv">中，480p</span></td>
+<td data-label="跑法"><span class="cv">VACE-14B 续写，832×480</span></td>
+<td data-label="每段有效时间"><span class="cv">约 18 秒</span></td>
+<td data-label="算法"><span class="cv">480p/720p 实测比约 0.31（Wan2.2 表）</span></td>
+</tr>
+<tr><td class="k" data-label="情况"><span class="cv">中，论文原样</span></td>
+<td data-label="跑法"><span class="cv">Wan-VACE-14B 重绘，832×480 / 57 帧</span></td>
+<td data-label="每段有效时间"><span class="cv">约 11 秒</span></td>
+<td data-label="算法"><span class="cv">再乘约 0.62（57 帧 vs 81 帧）</span></td>
+</tr>
+</tbody>
+</table></div>
+<p data-anchor-id="s2-p-c0d155">单卡副本可行吗？可以。Wan2.1-VACE-14B 的 DiT 文件约 63 GB（按 FP32 存，转 BF16 约 32 GB）+ T5（约 11 GB）+ VAE，整个仓库约 75 GB。放一张 288 GB 的 B300 绰绰有余。NVIDIA Sol-Engine 也在单张 GB200（192 GB）上跑过 Wan2.2-A14B 两个专家。</p>
+<p data-anchor-id="s2-p-774b4a"><strong>注意 TensorRT-LLM VisualGen 没有写支持 VACE。</strong> 它支持 Wan2.2 T2V/I2V。VACE 用官方 Wan2.1 仓库或 Diffusers 的 <code>WanVACEPipeline</code> 跑。所以“高”那一行（不编译）的风险是真实存在的。</p>
+</section>
+<section class="card" id="s3" data-section="s3" aria-labelledby="s3-h"><h2 id="s3-h"><span class="badge" aria-hidden="true">3</span><span class="h-num">3. </span><span class="h-t">300 道和 600 道：时间和费用</span></h2>
+<p data-anchor-id="s3-p-852cf0">价格：National Compute .edu 价，8×B300 一台 <strong>$32/小时</strong>。一次最多租 4 小时。每次租机按约 0.4 小时算准备时间（下载约 75 GB 权重到本地 NVMe、加载、预热、冒烟测试）。</p>
+<h3>3.1 自己跑（开源 Wan，8×B300）</h3>
+<div class="table-wrap wide stack" data-anchor-id="s3-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">情况</th>
+<th scope="col">每段</th>
+<th scope="col">300 道：生成 / 总时间 / 租几次 / 费用</th>
+<th scope="col">600 道：生成 / 总时间 / 租几次 / 费用</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="情况"><span class="cv">低（720p 续写）</span></td>
+<td data-label="每段"><span class="cv">48 秒</span></td>
+<td data-label="300 道：生成 / 总时间 / 租几次 / 费用"><span class="cv">4.0 小时 / 4.8 小时 / 2 次 / 约 $155</span></td>
+<td data-label="600 道：生成 / 总时间 / 租几次 / 费用"><span class="cv">8.0 小时 / 9.2 小时 / 3 次 / 约 $295</span></td>
+</tr>
+<tr><td class="k" data-label="情况"><span class="cv"><strong>中（720p 续写，推荐）</strong></span></td>
+<td data-label="每段"><span class="cv"><strong>58 秒</strong></span></td>
+<td data-label="300 道：生成 / 总时间 / 租几次 / 费用"><span class="cv"><strong>4.8 小时 / 5.6 小时 / 2 次 / 约 $180</strong></span></td>
+<td data-label="600 道：生成 / 总时间 / 租几次 / 费用"><span class="cv"><strong>9.6 小时 / 10.8 小时 / 3 次 / 约 $345</strong></span></td>
+</tr>
+<tr><td class="k" data-label="情况"><span class="cv">高（720p，不编译）</span></td>
+<td data-label="每段"><span class="cv">86 秒</span></td>
+<td data-label="300 道：生成 / 总时间 / 租几次 / 费用"><span class="cv">7.1 小时 / 7.9 小时 / 2 次 / 约 $255</span></td>
+<td data-label="600 道：生成 / 总时间 / 租几次 / 费用"><span class="cv">14.3 小时 / 15.9 小时 / 4 次 / 约 $510</span></td>
+</tr>
+<tr><td class="k" data-label="情况"><span class="cv">中（480p 续写）</span></td>
+<td data-label="每段"><span class="cv">18 秒</span></td>
+<td data-label="300 道：生成 / 总时间 / 租几次 / 费用"><span class="cv">1.5 小时 / 1.9 小时 / 1 次 / 约 $60</span></td>
+<td data-label="600 道：生成 / 总时间 / 租几次 / 费用"><span class="cv">3.0 小时 / 3.4 小时 / 1 次 / 约 $110</span></td>
+</tr>
+<tr><td class="k" data-label="情况"><span class="cv">中（论文原样重绘）</span></td>
+<td data-label="每段"><span class="cv">11 秒</span></td>
+<td data-label="300 道：生成 / 总时间 / 租几次 / 费用"><span class="cv">1.0 小时 / 1.4 小时 / 1 次 / 约 $45</span></td>
+<td data-label="600 道：生成 / 总时间 / 租几次 / 费用"><span class="cv">1.9 小时 / 2.3 小时 / 1 次 / 约 $75</span></td>
+</tr>
+<tr><td class="k" data-label="情况"><span class="cv">第一次搭环境调试</span></td>
+<td data-label="每段"><span class="cv">—</span></td>
+<td data-label="300 道：生成 / 总时间 / 租几次 / 费用"><span class="cv">+1–3 小时，+$32–96</span></td>
+<td data-label="600 道：生成 / 总时间 / 租几次 / 费用"><span class="cv">同左</span></td>
+</tr>
+</tbody>
+</table></div>
+<p data-anchor-id="s3-p-38dc00"><strong>但是：这测的不是论文里的 Wan 3.0 Prime。</strong> 它适合做“同一个模型、新旧 prompt 对比”。不适合和表 2 的 Wan 3.0 Prime 分数直接比。</p>
+<h3>3.2 走 API（论文同款 Wan 3.0 Prime）</h3>
+<div class="table-wrap wide" data-anchor-id="s3-table-2" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">项目</th>
+<th scope="col">数字</th>
+<th scope="col">来源</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="项目"><span class="cv">fal 价格</span></td>
+<td data-label="数字"><span class="cv">720p 每秒 $0.14；<strong>输入参考视频的秒数也计费</strong></span></td>
+<td data-label="来源"><span class="cv">fal 接口页</span></td>
+</tr>
+<tr><td class="k" data-label="项目"><span class="cv">阿里国际站价格</span></td>
+<td data-label="数字"><span class="cv">720p 每秒 $0.127199</span></td>
+<td data-label="来源"><span class="cv">阿里云 Model Studio</span></td>
+</tr>
+<tr><td class="k" data-label="项目"><span class="cv">WROP 每道</span></td>
+<td data-label="数字"><span class="cv">2.5 秒参考 + 3 秒输出 = 5.5 秒 × $0.14 ≈ <strong>$0.77</strong></span></td>
+<td data-label="来源"><span class="cv">自算</span></td>
+</tr>
+<tr><td class="k" data-label="项目"><span class="cv">300 道</span></td>
+<td data-label="数字"><span class="cv"><strong>约 $230</strong>（阿里直连约 $210）</span></td>
+<td data-label="来源"><span class="cv">自算（2 道 90 帧题按 3.75+4 秒算）</span></td>
+</tr>
+<tr><td class="k" data-label="项目"><span class="cv">600 道</span></td>
+<td data-label="数字"><span class="cv"><strong>约 $460</strong></span></td>
+<td data-label="来源"><span class="cv">自算</span></td>
+</tr>
+<tr><td class="k" data-label="项目"><span class="cv">单个任务时间</span></td>
+<td data-label="数字"><span class="cv">没有官方数字。第三方实测（5 秒 720p）：97 秒、108 秒；OpenRouter P50 177 秒</span></td>
+<td data-label="来源"><span class="cv">UlazAI 2026-08-27、wan-3.run、OpenRouter</span></td>
+</tr>
+<tr><td class="k" data-label="项目"><span class="cv">300 道墙钟时间</span></td>
+<td data-label="数字"><span class="cv">10 个并发约 1 小时；2 个并发约 5 小时（并发上限未查到）</span></td>
+<td data-label="来源"><span class="cv">自算</span></td>
+</tr>
+</tbody>
+</table></div>
+<p data-anchor-id="s3-p-4c9561">注意：</p>
+<ul>
+<li>论文说关掉了服务器端 prompt 改写。fal 的 <code>enable_prompt_expansion</code> 默认是开的，必须手动关。fal 说关掉能省 20–60 秒。</li>
+<li>旧 prompt 的 Wan 3.0 Prime 结果已经在论文的 HF 数据集里（<code>results/wan-3.0-prime-video-edit/</code>）。只跑新 prompt：300 道、约 $230。但为了排除“后端版本变了”，最好新旧各跑一遍：600 道、约 $460。</li>
+<li>API 后端随时会更新。今天跑的 Wan 3.0 Prime 不一定和论文当时一样。</li>
+</ul>
+</section>
+<section class="card" id="s4" data-section="s4" aria-labelledby="s4-h"><h2 id="s4-h"><span class="badge" aria-hidden="true">4</span><span class="h-num">4. </span><span class="h-t">激进 / 质量未验证的加速（不进推荐报价）</span></h2>
+<div class="table-wrap wide stack xwide" data-anchor-id="s4-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">方案</th>
+<th scope="col">作者 / 日期</th>
+<th scope="col">做了什么</th>
+<th scope="col">公开速度</th>
+<th scope="col">质量证据</th>
+<th scope="col">支持视频续写吗</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="方案"><span class="cv"><strong>MLPerf 配置</strong>（TensorRT-LLM VisualGen）</span></td>
+<td data-label="作者 / 日期"><span class="cv">NVIDIA 等，MLPerf v6.1</span></td>
+<td data-label="做了什么"><span class="cv">FP8 + <strong>20 步</strong>（官方默认 40）</span></td>
+<td data-label="公开速度"><span class="cv"><strong>NVIDIA DGX B300（8 卡）：单段 17.98 秒；吞吐 0.0622 段/秒 ≈ 16.1 秒/段</strong>。VibeHPC 同机型 0.0784 段/秒 ≈ 12.8 秒/段</span></td>
+<td data-label="质量证据"><span class="cv">VBench 6 项均分 70.20，参考 70.48（参考本身是 BF16 + 20 步）；门槛 ≥ 99%</span></td>
+<td data-label="支持视频续写吗"><span class="cv">只有文生视频（T2V）。映射到 VACE 720p 约 19 秒/段，300 道约 2 小时、约 $65（未验证能跑 VACE）</span></td>
+</tr>
+<tr><td class="k" data-label="方案"><span class="cv">TRT-LLM GEMM 量化 / SAGE / Skip Softmax</span></td>
+<td data-label="作者 / 日期"><span class="cv">NVIDIA 博客 28</span></td>
+<td data-label="做了什么"><span class="cv">FP8、NVFP4、INT8 注意力、稀疏 softmax</span></td>
+<td data-label="公开速度"><span class="cv">1×B200：1.07–1.54 倍</span></td>
+<td data-label="质量证据"><span class="cv">对 BF16 的 LPIPS：0.11（BF16+保守 Skip Softmax）到 0.49</span></td>
+<td data-label="支持视频续写吗"><span class="cv">只测 T2V</span></td>
+</tr>
+<tr><td class="k" data-label="方案"><span class="cv">TRT-LLM NVFP4 + 8 卡</span></td>
+<td data-label="作者 / 日期"><span class="cv">NVIDIA 博客 25</span></td>
+<td data-label="做了什么"><span class="cv">NVFP4 + CFG2 × Ulysses4</span></td>
+<td data-label="公开速度"><span class="cv">8×B200：54.1 秒（720p，40 步）</span></td>
+<td data-label="质量证据"><span class="cv">NVFP4 单卡 LPIPS 0.37</span></td>
+<td data-label="支持视频续写吗"><span class="cv">只测 T2V</span></td>
+</tr>
+<tr><td class="k" data-label="方案"><span class="cv">Sol-Engine Wan2.2-A14B</span></td>
+<td data-label="作者 / 日期"><span class="cv">NVIDIA SANA 团队</span></td>
+<td data-label="做了什么"><span class="cv">融合 + EasyCache（约 14/40 步复用）+ PISA 稀疏注意力（密度 0.10）</span></td>
+<td data-label="公开速度"><span class="cv">1×GB200：449.67 → 207.01 秒（2.17 倍）</span></td>
+<td data-label="质量证据"><span class="cv">页面没有质量数字</span></td>
+<td data-label="支持视频续写吗"><span class="cv">只测 T2V</span></td>
+</tr>
+<tr><td class="k" data-label="方案"><span class="cv">Sol-Engine Wan2.2-TI2V-5B</span></td>
+<td data-label="作者 / 日期"><span class="cv">同上</span></td>
+<td data-label="做了什么"><span class="cv">融合 + EasyCache（约 47% 步复用）</span></td>
+<td data-label="公开速度"><span class="cv">1×GB200：70.25 → 24.35 秒（2.89 倍）；其中无损融合 1.52 倍</span></td>
+<td data-label="质量证据"><span class="cv">无</span></td>
+<td data-label="支持视频续写吗"><span class="cv">5B 模型，不同模型</span></td>
+</tr>
+<tr><td class="k" data-label="方案"><span class="cv">SGLang Cache-DiT</span></td>
+<td data-label="作者 / 日期"><span class="cv">SGLang</span></td>
+<td data-label="做了什么"><span class="cv">跨步缓存</span></td>
+<td data-label="公开速度"><span class="cv">文档说最高 7.4 倍</span></td>
+<td data-label="质量证据"><span class="cv">“质量损失很小”，没给数字</span></td>
+<td data-label="支持视频续写吗"><span class="cv">只测 T2V</span></td>
+</tr>
+<tr><td class="k" data-label="方案"><span class="cv">LightX2V Wan2.2 蒸馏 LoRA</span></td>
+<td data-label="作者 / 日期"><span class="cv">ModelTC</span></td>
+<td data-label="做了什么"><span class="cv">4 步 + 去 CFG</span></td>
+<td data-label="公开速度"><span class="cv">去噪计算少约 20 倍</span></td>
+<td data-label="质量证据"><span class="cv">未见对原版的数字</span></td>
+<td data-label="支持视频续写吗"><span class="cv">社区常和 VACE 混用，未验证</span></td>
+</tr>
+<tr><td class="k" data-label="方案"><span class="cv">TurboDiffusion</span></td>
+<td data-label="作者 / 日期"><span class="cv">清华，arXiv 2512.16093（2025-12）</span></td>
+<td data-label="做了什么"><span class="cv">rCM 3–4 步蒸馏 + SLA 稀疏注意力 + W8A8</span></td>
+<td data-label="公开速度"><span class="cv">Wan2.2-I2V-A14B 720p：1×RTX 5090 上 4549 → 38 秒（120 倍，不含编码/解码）</span></td>
+<td data-label="质量证据"><span class="cv">论文没有定量质量数字</span></td>
+<td data-label="支持视频续写吗"><span class="cv">只有 T2V / I2V</span></td>
+</tr>
+<tr><td class="k" data-label="方案"><span class="cv">AnyFlow</span></td>
+<td data-label="作者 / 日期"><span class="cv">NVIDIA，arXiv 2605.13724（2026-05）</span></td>
+<td data-label="做了什么"><span class="cv">任意步数流映射蒸馏（Wan2.1 14B）</span></td>
+<td data-label="公开速度"><span class="cv">4 步</span></td>
+<td data-label="质量证据"><span class="cv"><strong>证据最好的一个</strong>：VBench T2V 84.04（4 步）vs 84.10（32 步）；I2V 87.87（4 步）vs 原版 Wan2.1-I2V 87.71（50×2）</span></td>
+<td data-label="支持视频续写吗"><span class="cv">只有 T2V / I2V，没有 VACE</span></td>
+</tr>
+<tr><td class="k" data-label="方案"><span class="cv">降到 480p / 少帧</span></td>
+<td data-label="作者 / 日期"><span class="cv">—</span></td>
+<td data-label="做了什么"><span class="cv">改输入</span></td>
+<td data-label="公开速度"><span class="cv">约 3 倍</span></td>
+<td data-label="质量证据"><span class="cv">会改变模型行为</span></td>
+<td data-label="支持视频续写吗"><span class="cv">见第 3.1 节 480p 行，算“换题”不算加速</span></td>
+</tr>
+<tr><td class="k" data-label="方案"><span class="cv"><strong>Wan 3.0 Prime 本身</strong></span></td>
+<td data-label="作者 / 日期"><span class="cv">阿里</span></td>
+<td data-label="做了什么"><span class="cv">“加速版”，方法未公开</span></td>
+<td data-label="公开速度"><span class="cv">第三方：比标准版快约 1.9–3.1 倍</span></td>
+<td data-label="质量证据"><span class="cv">只有“能力一致”这句话</span></td>
+<td data-label="支持视频续写吗"><span class="cv">论文用的就是它，所以对重跑不是额外损失</span></td>
+</tr>
+</tbody>
+</table></div>
+<p data-anchor-id="s4-p-d83d67"><strong>激进方案的大概成本（只供参考）：</strong> 用 MLPerf 那套 FP8 + 20 步，如果能接上 VACE，300 道约 2 小时、约 $65。用 4 步蒸馏，300 道不到 1 小时（含准备）、约 $30。但这样测的已经不是原版 Wan。</p>
+</section>
+<section class="card" id="s5" data-section="s5" aria-labelledby="s5-h"><h2 id="s5-h"><span class="badge" aria-hidden="true">5</span><span class="h-num">5. </span><span class="h-t">和 H3 并排比较</span></h2>
+<div class="table-wrap wide stack" data-anchor-id="s5-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">项目</th>
+<th scope="col">MiniMax H3（质量安全中间值）</th>
+<th scope="col">Wan（开源 VACE-14B 自跑，质量安全中间值）</th>
+<th scope="col">Wan 3.0 Prime（API，论文同款）</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="项目"><span class="cv">和论文同一个模型吗</span></td>
+<td data-label="MiniMax H3（质量安全中间值）"><span class="cv">是（H3 开源权重；论文走 FAL，后端设置未知）</span></td>
+<td data-label="Wan（开源 VACE-14B 自跑，质量安全中间值）"><span class="cv"><strong>否</strong>（论文的 Wan 3.0 Prime 无权重）</span></td>
+<td data-label="Wan 3.0 Prime（API，论文同款）"><span class="cv"><strong>是</strong>（但 API 后端可能已更新）</span></td>
+</tr>
+<tr><td class="k" data-label="项目"><span class="cv">接口类型</span></td>
+<td data-label="MiniMax H3（质量安全中间值）"><span class="cv">参考视频生成（Ref2VA）</span></td>
+<td data-label="Wan（开源 VACE-14B 自跑，质量安全中间值）"><span class="cv">真续写（firstclip）</span></td>
+<td data-label="Wan 3.0 Prime（API，论文同款）"><span class="cv">参考视频生成（或 video-edit，待确认）</span></td>
+</tr>
+<tr><td class="k" data-label="项目"><span class="cv">输出</span></td>
+<td data-label="MiniMax H3（质量安全中间值）"><span class="cv">1344×768，124 帧</span></td>
+<td data-label="Wan（开源 VACE-14B 自跑，质量安全中间值）"><span class="cv">1280×720，16 fps，41 帧新内容</span></td>
+<td data-label="Wan 3.0 Prime（API，论文同款）"><span class="cv">1280×720，30 fps，90 帧</span></td>
+</tr>
+<tr><td class="k" data-label="项目"><span class="cv">每段有效时间（8×B300）</span></td>
+<td data-label="MiniMax H3（质量安全中间值）"><span class="cv">约 33 秒</span></td>
+<td data-label="Wan（开源 VACE-14B 自跑，质量安全中间值）"><span class="cv">约 58 秒（480p 约 18 秒）</span></td>
+<td data-label="Wan 3.0 Prime（API，论文同款）"><span class="cv">不用 GPU；单任务约 100–180 秒</span></td>
+</tr>
+<tr><td class="k" data-label="项目"><span class="cv">300 道</span></td>
+<td data-label="MiniMax H3（质量安全中间值）"><span class="cv">约 3.2 小时、约 $100</span></td>
+<td data-label="Wan（开源 VACE-14B 自跑，质量安全中间值）"><span class="cv">约 5.6 小时、约 $180</span></td>
+<td data-label="Wan 3.0 Prime（API，论文同款）"><span class="cv">约 1–5 小时、约 $230</span></td>
+</tr>
+<tr><td class="k" data-label="项目"><span class="cv">600 道（新旧各一遍）</span></td>
+<td data-label="MiniMax H3（质量安全中间值）"><span class="cv">约 6.5 小时、约 $200</span></td>
+<td data-label="Wan（开源 VACE-14B 自跑，质量安全中间值）"><span class="cv">约 10.8 小时、约 $345</span></td>
+<td data-label="Wan 3.0 Prime（API，论文同款）"><span class="cv">约 $460</span></td>
+</tr>
+<tr><td class="k" data-label="项目"><span class="cv">激进最快</span></td>
+<td data-label="MiniMax H3（质量安全中间值）"><span class="cv">Sol-H3 约 1.65 秒/段（T2VA，无质量数字）</span></td>
+<td data-label="Wan（开源 VACE-14B 自跑，质量安全中间值）"><span class="cv">MLPerf FP8+20 步约 16 秒/段（T2V，VBench ≥ 99%）</span></td>
+<td data-label="Wan 3.0 Prime（API，论文同款）"><span class="cv">—</span></td>
+</tr>
+<tr><td class="k" data-label="项目"><span class="cv">许可证</span></td>
+<td data-label="MiniMax H3（质量安全中间值）"><span class="cv">不覆盖美国、欧盟、英国、韩国</span></td>
+<td data-label="Wan（开源 VACE-14B 自跑，质量安全中间值）"><span class="cv">Apache 2.0，无地区限制</span></td>
+<td data-label="Wan 3.0 Prime（API，论文同款）"><span class="cv">按 API 条款</span></td>
+</tr>
+<tr><td class="k" data-label="项目"><span class="cv">最大未知</span></td>
+<td data-label="MiniMax H3（质量安全中间值）"><span class="cv">视频参考的真实代价（1.3–3.5 倍）</span></td>
+<td data-label="Wan（开源 VACE-14B 自跑，质量安全中间值）"><span class="cv">B300 单步时间、VACE 代码效率</span></td>
+<td data-label="Wan 3.0 Prime（API，论文同款）"><span class="cv">账号并发上限、论文用的是哪个接口</span></td>
+</tr>
+</tbody>
+</table></div>
+<p data-anchor-id="s5-p-de1691"><strong>为什么 Wan 自跑更慢？</strong></p>
+<ol class="steps">
+<li>Wan 的 VAE 压缩是 8×8×4，再加 2×2 patch：5 秒 720p 约 75,600 token。H3 同样 5 秒约 38,247 token。注意力的计算随 token 数平方增长。</li>
+<li>VACE 多 8 个块，多约 20% 计算。</li>
+<li>默认 50 步加 CFG，每步跑两遍模型。</li>
+</ol>
+<p data-anchor-id="s5-p-4e4fbd"><strong>一句话建议：</strong></p>
+<ul>
+<li>想要“论文同款 Wan”：走 API，600 道约 $460，不用租机。</li>
+<li>想要“自己可控、可重复”的开源对照：VACE-14B 720p 续写，600 道约 $345。先在 480p 跑 5 道冒烟测试（约 $10）确认流程。</li>
+<li>H3 仍是 8×B300 上最便宜的质量安全方案。</li>
+</ul>
+</section>
+<section class="card" id="s6" data-section="s6" aria-labelledby="s6-h"><h2 id="s6-h"><span class="badge" aria-hidden="true">6</span><span class="h-num">6. </span><span class="h-t">还没确定的事</span></h2>
+<ol class="steps">
+<li><strong>论文调的是 Wan 3.0 Prime 的哪个接口。</strong> 表 1 说参考生成，文件夹名说 video-edit。</li>
+<li><strong>B300 的 BF16 单步时间。</strong> 没人公开。我们从 B200 BF16 和 B300 FP8 推算，范围 6.5–9.3 秒/步。</li>
+<li><strong>VACE 续写的代码效率。</strong> TensorRT-LLM 不支持 VACE。官方仓库没有 FA4，Blackwell 上可能慢 1.2–1.5 倍。</li>
+<li><strong>API 并发上限。</strong> fal 和阿里都没查到明确数字。墙钟时间差 5 倍以上。</li>
+<li><strong>16 fps 重采样。</strong> Wan 开源模型是 16 fps，WROP 是 24 fps。输入从 60 帧降到 40 帧，会丢一点运动信息。</li>
+</ol>
+</section>
+<section class="card" id="s7" data-section="s7" aria-labelledby="s7-h"><h2 id="s7-h"><span class="badge" aria-hidden="true">7</span><span class="h-num">7. </span><span class="h-t">来源</span></h2>
+<ul>
+<li>WROP 论文第 4.2–4.3 节、表 1、表 2：本地 <code>gen-splits/paper.txt</code>；结果文件夹名：<code>gen-splits/object-permanence-benchmark.api.json</code></li>
+<li>fal Wan 3.0 Prime 参考生成接口（价格、参数、参考视频计费）：<a href="https://fal.ai/models/alibaba/wan-3.0-prime/reference-to-video/llms.txt" target="_blank" rel="noopener noreferrer">https://fal.ai/models/alibaba/wan-3.0-prime/reference-to-video/llms.txt</a></li>
+<li>阿里云 wan3.0-video-prime 型号页（国际站价格）：<a href="https://www.alibabacloud.com/help/en/model-studio/wan3-0-video-prime" target="_blank" rel="noopener noreferrer">https://www.alibabacloud.com/help/en/model-studio/wan3-0-video-prime</a></li>
+<li>阿里云 Wan3.0 使用指南（续写/编辑任务的触发方式）：<a href="https://docs.modelstudio.console.alibabacloud.com/en/model-studio/wan3-video-generation-guide" target="_blank" rel="noopener noreferrer">https://docs.modelstudio.console.alibabacloud.com/en/model-studio/wan3-video-generation-guide</a></li>
+<li>阿里云社区《Wan3.0 vs. Wan3.0-Prime》（2026-10-07，“没有公开速度数字”）：<a href="https://www.alibabacloud.com/blog/wan3-0-vs--wan3-0-prime-speed-price-and-which-one-your-workflow-needs_603618" target="_blank" rel="noopener noreferrer">https://www.alibabacloud.com/blog/wan3-0-vs--wan3-0-prime-speed-price-and-which-one-your-workflow-needs_603618</a></li>
+<li>Wan 3.0 发布（2026-08-13 社区文）：<a href="https://www.alibabacloud.com/blog/wan3-0-30-second-ai-video-generation-from-any-input_603452" target="_blank" rel="noopener noreferrer">https://www.alibabacloud.com/blog/wan3-0-30-second-ai-video-generation-from-any-input_603452</a></li>
+<li>第三方 Prime 计时：<a href="https://ulazai.com/wan-3-0-video-prime/" target="_blank" rel="noopener noreferrer">https://ulazai.com/wan-3-0-video-prime/</a>、<a href="https://wan-3.run/wan-3-0-prime" target="_blank" rel="noopener noreferrer">https://wan-3.run/wan-3-0-prime</a>、<a href="https://openrouter.ai/alibaba/wan-3.0-prime" target="_blank" rel="noopener noreferrer">https://openrouter.ai/alibaba/wan-3.0-prime</a></li>
+<li>Wan 3.0 / Prime video-extend 第三方接口：<a href="https://www.sandbase.ai/model/alibaba/wan/3.0/prime/video-extend" target="_blank" rel="noopener noreferrer">https://www.sandbase.ai/model/alibaba/wan/3.0/prime/video-extend</a>、<a href="https://wavespeed.ai/docs/docs-api/alibaba/alibaba-wan-3.0-video-extend" target="_blank" rel="noopener noreferrer">https://wavespeed.ai/docs/docs-api/alibaba/alibaba-wan-3.0-video-extend</a></li>
+<li>Hugging Face Wan-AI 组织模型列表（API 查询，2026-10-09）：<a href="https://huggingface.co/Wan-AI" target="_blank" rel="noopener noreferrer">https://huggingface.co/Wan-AI</a></li>
+<li>Wan2.2 官方 README 与测速表：<a href="https://github.com/Wan-Video/Wan2.2" target="_blank" rel="noopener noreferrer">https://github.com/Wan-Video/Wan2.2</a></li>
+<li>Wan2.1 官方 README 与测速表、<code>generate.py</code> 默认步数：<a href="https://github.com/Wan-Video/Wan2.1" target="_blank" rel="noopener noreferrer">https://github.com/Wan-Video/Wan2.1</a></li>
+<li>VACE 用户指南（firstclip 续写）：<a href="https://github.com/ali-vilab/VACE/blob/main/UserGuide.md" target="_blank" rel="noopener noreferrer">https://github.com/ali-vilab/VACE/blob/main/UserGuide.md</a>；VACE-14B 配置：<a href="https://huggingface.co/Wan-AI/Wan2.1-VACE-14B" target="_blank" rel="noopener noreferrer">https://huggingface.co/Wan-AI/Wan2.1-VACE-14B</a></li>
+<li>Wan2.2-VACE-Fun-A14B：<a href="https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B" target="_blank" rel="noopener noreferrer">https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B</a></li>
+<li>TensorRT-LLM 博客 25（NVL72 扩展、1×B200 基线、并行质量、内核噪声）：<a href="https://nvidia.github.io/TensorRT-LLM/latest/blogs/tech_blog/blog25_Scaling_Video_Generation_Across_NVL72_Rack_with_TensorRT-LLM.html" target="_blank" rel="noopener noreferrer">https://nvidia.github.io/TensorRT-LLM/latest/blogs/tech_blog/blog25_Scaling_Video_Generation_Across_NVL72_Rack_with_TensorRT-LLM.html</a></li>
+<li>TensorRT-LLM 博客 28（量化 / SAGE / Skip Softmax 的速度与 LPIPS）：<a href="https://github.com/NVIDIA/TensorRT-LLM/blob/main/docs/source/blogs/tech_blog/blog28_Accelerating_Video_Generation_with_GEMM_Quantization_Attention_Quantization_and_Skip_Softmax_Attention_in_TensorRT-LLM.md" target="_blank" rel="noopener noreferrer">https://github.com/NVIDIA/TensorRT-LLM/blob/main/docs/source/blogs/tech_blog/blog28_Accelerating_Video_Generation_with_GEMM_Quantization_Attention_Quantization_and_Skip_Softmax_Attention_in_TensorRT-LLM.md</a></li>
+<li>MLCommons 文生视频基准说明（2026-03-10）：<a href="https://mlcommons.org/2026/03/texttovideo-inference/" target="_blank" rel="noopener noreferrer">https://mlcommons.org/2026/03/texttovideo-inference/</a></li>
+<li>MLPerf Inference v6.1 结果汇总：<a href="https://raw.githubusercontent.com/mlcommons/inference_results_v6.1/main/summary.csv" target="_blank" rel="noopener noreferrer">https://raw.githubusercontent.com/mlcommons/inference_results_v6.1/main/summary.csv</a></li>
+<li>NVIDIA MLPerf v6.0 博客（2026-04-01）：<a href="https://developer.nvidia.com/blog/nvidia-platform-delivers-lowest-token-cost-enabled-by-extreme-co-design/" target="_blank" rel="noopener noreferrer">https://developer.nvidia.com/blog/nvidia-platform-delivers-lowest-token-cost-enabled-by-extreme-co-design/</a></li>
+<li>VibeHPC B300 Wan2.2 优化：<a href="https://vibehpc.com/LLMInference/wan-2-2-optimization/" target="_blank" rel="noopener noreferrer">https://vibehpc.com/LLMInference/wan-2-2-optimization/</a></li>
+<li>NVIDIA Sol-Engine Wan 页面：<a href="https://nvlabs.github.io/Sana/Sol-Engine/docs/pipelines/wan14b/" target="_blank" rel="noopener noreferrer">https://nvlabs.github.io/Sana/Sol-Engine/docs/pipelines/wan14b/</a>、<a href="https://nvlabs.github.io/Sana/Sol-Engine/docs/pipelines/wan5b/" target="_blank" rel="noopener noreferrer">https://nvlabs.github.io/Sana/Sol-Engine/docs/pipelines/wan5b/</a></li>
+<li>SGLang Wan2.2 cookbook：<a href="https://docs.sglang.io/cookbook/diffusion/Wan/Wan2.2" target="_blank" rel="noopener noreferrer">https://docs.sglang.io/cookbook/diffusion/Wan/Wan2.2</a>；PR #28304：<a href="https://github.com/sgl-project/sglang/pull/28304" target="_blank" rel="noopener noreferrer">https://github.com/sgl-project/sglang/pull/28304</a></li>
+<li>TurboDiffusion：<a href="https://arxiv.org/abs/2512.16093" target="_blank" rel="noopener noreferrer">https://arxiv.org/abs/2512.16093</a>；AnyFlow：<a href="https://arxiv.org/abs/2605.13724" target="_blank" rel="noopener noreferrer">https://arxiv.org/abs/2605.13724</a></li>
+<li>H3 对照数字：<a href="/wrop-h3-nvidia-speed">H3 加速调研</a></li>
+</ul>
+</section>
+    </article>
+
+    <nav class="more" aria-label="其他页面">
+      <ul><li><a class="more-card" href="/wrop-improvement-directions"><span class="more-k">另一篇</span><span class="more-t">WROP 后续改进方向</span></a></li><li><a class="more-card" href="/wrop-metrics-zh"><span class="more-k">另一篇</span><span class="more-t">WROP 评测指标：是什么、怎么算、哪里弱</span></a></li><li><a class="more-card" href="/wrop-rerun-cost"><span class="more-k">另一篇</span><span class="more-t">WROP 改 prompt 后重跑：时间和算力估算</span></a></li><li><a class="more-card" href="/wrop-h3-nvidia-speed"><span class="more-k">另一篇</span><span class="more-t">MiniMax H3 在 NVIDIA 上能跑多快：对 WROP 重跑的影响</span></a></li><li><a class="more-card" href="/wrop-train-prompts-over"><span class="more-k">另一篇</span><span class="more-t">WROP 训练提示词：OVER 有多少</span></a></li><li><a class="more-card" href="/physiq-vs-wrop"><span class="more-k">另一篇</span><span class="more-t">Physics-IQ vs Object Permanence：名次对照</span></a></li><li><a class="more-card" href="/"><span class="more-k">首页</span><span class="more-t">全部页面</span></a></li></ul>
+    </nav>
+
+    <section class="comments" id="comments" aria-labelledby="comments-h">
+      <h2 id="comments-h">评论 <span class="count" id="list-count">0</span></h2>
+      <p class="hint">选中正文里的文字。点「评论」按钮。评论会贴在那段文字上。</p>
+      <p class="hint">无需登录。任何人都可以回复、编辑、删除、解决任何评论。昵称可不填，会记在本浏览器里。</p>
+      <button type="button" class="btn ghost" id="page-comment">评论整篇</button>
+      <p class="empty" id="list-empty">还没有评论。</p>
+      <ol class="thread-list" id="thread-list"></ol>
+    </section>
+  </main>
+</div>
+
+<footer class="foot">
+  <p>来源：<code>content/wrop-wan-speed.md</code>。更新于 2026-10-10。</p>
+  <p>托管于 Cloudflare。评论公开，任何人可改。</p>
+</footer>
+
+<button type="button" class="sel-btn" id="sel-btn" hidden>评论</button>
+
+<div class="scrim" id="scrim" hidden></div>
+<aside class="panel" id="panel" role="dialog" aria-modal="true" aria-labelledby="panel-h" hidden>
+  <div class="panel-head">
+    <h2 id="panel-h">评论</h2>
+    <button type="button" class="icon-btn" id="panel-close" aria-label="关闭">×</button>
+  </div>
+  <div class="panel-body">
+    <blockquote class="panel-quote" id="panel-quote" hidden></blockquote>
+    <ol class="thread" id="panel-thread"></ol>
+    <form class="composer" id="composer" novalidate>
+      <label class="field" id="f-nick-field">
+        <span>昵称（可不填）</span>
+        <input type="text" id="f-nick" maxlength="40" autocomplete="nickname" placeholder="匿名">
+      </label>
+      <label class="field">
+        <span id="f-body-label">评论</span>
+        <textarea id="f-body" maxlength="2000" rows="4" required placeholder="写下你的看法。"></textarea>
+      </label>
+      <div class="form-foot">
+        <span class="counter" id="f-count">0 / 2000</span>
+        <button type="submit" class="btn" id="f-submit">发布</button>
+      </div>
+      <p class="form-msg" id="f-msg" role="status" aria-live="polite"></p>
+    </form>
+  </div>
+</aside>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

@@ -13,12 +13,12 @@
 </head>
 <body class="index">
 <a class="skip" href="#main">跳到正文</a>
-<nav class="topnav" aria-label="站点"><div class="topnav-inner"><a class="brand" href="/" aria-current="page">thoughts</a><div class="topnav-links"><a href="/wrop-improvement-directions" title="WROP 后续改进方向">改进方向</a><a href="/wrop-metrics-zh" title="WROP 评测指标：是什么、怎么算、哪里弱">评测指标</a><a href="/wrop-rerun-cost" title="WROP 改 prompt 后重跑：时间和算力估算">重跑成本</a><a href="/wrop-h3-nvidia-speed" title="MiniMax H3 在 NVIDIA 上能跑多快：对 WROP 重跑的影响">H3 加速</a><a href="/physiq-vs-wrop" title="Physics-IQ vs Object Permanence：名次对照">两榜对照</a></div></div></nav>
+<nav class="topnav" aria-label="站点"><div class="topnav-inner"><a class="brand" href="/" aria-current="page">thoughts</a><div class="topnav-links"><a href="/wrop-improvement-directions" title="WROP 后续改进方向">改进方向</a><a href="/wrop-metrics-zh" title="WROP 评测指标：是什么、怎么算、哪里弱">评测指标</a><a href="/wrop-rerun-cost" title="WROP 改 prompt 后重跑：时间和算力估算">重跑成本</a><a href="/wrop-h3-nvidia-speed" title="MiniMax H3 在 NVIDIA 上能跑多快：对 WROP 重跑的影响">H3 加速</a><a href="/wrop-wan-speed" title="用 Wan 重跑 WROP：能跑多快、要花多少钱">Wan 重跑速度</a><a href="/wrop-train-prompts-over" title="WROP 训练提示词：OVER 有多少">训练 OVER</a><a href="/physiq-vs-wrop" title="Physics-IQ vs Object Permanence：名次对照">两榜对照</a></div></div></nav>
 <header class="hero">
   <div class="hero-inner">
     <p class="eyebrow">thoughts.ycjian.com · 研究笔记</p>
     <h1>thoughts</h1>
-    <p class="lead">研究笔记。共 5 篇。每篇都能选中文字，匿名评论。</p>
+    <p class="lead">研究笔记。共 7 篇。每篇都能选中文字，匿名评论。</p>
   </div>
 </header>
 <main id="main" class="idx">
@@ -27,11 +27,14 @@
 <li><a class="idx-card" href="/wrop-metrics-zh"><span class="idx-k">评测指标 · 7 节</span><span class="idx-t">WROP 评测指标：是什么、怎么算、哪里弱</span><span class="idx-lead">依据论文 arXiv 2609.28654、代码仓库、Hugging Face 数据和排行榜页。只用已核实的事实。</span><ol class="idx-secs"><li>一句话结论</li><li>人工指标</li><li>自动指标</li><li>主要结果</li><li>G26 例子</li><li>主要问题</li><li>改进建议</li></ol><span class="idx-go">阅读并评论 →</span></a></li>
 <li><a class="idx-card" href="/wrop-rerun-cost"><span class="idx-k">重跑成本 · 10 节</span><span class="idx-t">WROP 改 prompt 后重跑：时间和算力估算</span><span class="idx-lead">日期：2026-10-08（新加坡时间）。所有数字都是数量级估算，不是实测，也不是厂商承诺。</span><ol class="idx-secs"><li>一句话结论</li><li>范围和假设</li><li>每道题要多久</li><li>300 道题一共多少算力</li><li>重训 PWM-WROP：另算</li><li>费用</li><li>敏感性：跑多少题</li><li>最大的不确定因素</li><li>NVIDIA 优化路径（2026-10-09 补充）</li><li>来源</li></ol><span class="idx-go">阅读并评论 →</span></a></li>
 <li><a class="idx-card" href="/wrop-h3-nvidia-speed"><span class="idx-k">H3 加速 · 9 节</span><span class="idx-t">MiniMax H3 在 NVIDIA 上能跑多快：对 WROP 重跑的影响</span><span class="idx-lead">日期：2026-10-09（新加坡时间）。本文补充<a href="/wrop-rerun-cost">重跑成本估算</a>。所有“估算”都是推算，不是实测。</span><ol class="idx-secs"><li>结论</li><li>质量安全的标准</li><li>所有加速路径一览</li><li>每道题要多久（质量安全）</li><li>质量未验证 / 激进加速（只供参考，不用于成本中间值）</li><li>哪条路适合 WROP</li><li>300 道题：新估算</li><li>还没确定的事</li><li>来源</li></ol><span class="idx-go">阅读并评论 →</span></a></li>
+<li><a class="idx-card" href="/wrop-wan-speed"><span class="idx-k">Wan 重跑速度 · 8 节</span><span class="idx-t">用 Wan 重跑 WROP：能跑多快、要花多少钱</span><span class="idx-lead">日期：2026-10-09（新加坡时间）。本文和 <a href="/wrop-h3-nvidia-speed">H3 加速调研</a> 配套。所有“估算”都是推算，不是实测。</span><ol class="idx-secs"><li>结论</li><li>名字对照：哪个是哪个</li><li>质量安全的速度</li><li>300 道和 600 道：时间和费用</li><li>激进 / 质量未验证的加速（不进推荐报价）</li><li>和 H3 并排比较</li><li>还没确定的事</li><li>来源</li></ol><span class="idx-go">阅读并评论 →</span></a></li>
+<li><a class="idx-card" href="/wrop-train-prompts-over"><span class="idx-k">训练 OVER · 9 节</span><span class="idx-t">WROP 训练提示词：OVER 有多少</span><span class="idx-lead">日期：2026-10-09（新加坡时间）
+范围：只做调查。不改任何作者文件。</span><ol class="idx-secs"><li>一句话结论</li><li>发布了吗</li><li>怎么抽样</li><li>训练提示词和脚本正文一样吗</li><li>结果：照搬 197 条审查的标签</li><li>复核：197 条审查里的 OK 不一致</li><li>分族结果（训练集抽样）</li><li>没查到或没做的</li><li>文件</li></ol><span class="idx-go">阅读并评论 →</span></a></li>
 <li><a class="idx-card" href="/physiq-vs-wrop"><span class="idx-k">两榜对照 · 6 节</span><span class="idx-t">Physics-IQ vs Object Permanence：名次对照</span><span class="idx-lead">左边是 DeepMind <strong>Physics-IQ Verified</strong>（真实物理一致性自动分），右边是 <strong>Object Permanence / WROP</strong>（物体恒存人工 Elo）。两边共有 6 个模型用连线标出；连线交叉 = 名次颠倒。</span><ol class="idx-secs"><li>一句话结论</li><li>对照图</li><li>Physics-IQ Verified（节选）</li><li>Object Permanence（WROP Elo）</li><li>重叠与反转</li><li>来源</li></ol><span class="idx-go">阅读并评论 →</span></a></li>
   </ul>
 </main>
 <footer class="foot">
-  <p>更新于 2026-10-09。托管于 Cloudflare。评论匿名存储。</p>
+  <p>更新于 2026-10-10。托管于 Cloudflare。评论匿名存储。</p>
 </footer>
 </body>
 </html>
