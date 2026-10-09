@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Physics-IQ vs Object Permanence：名次对照 · thoughts</title>
+<meta name="description" content="Physics-IQ Verified 与 Object Permanence（WROP）两个榜上共有模型的名次对照；Seedance 与 MiniMax H3 名次反转。">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f7f6f2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css">
+<script src="/app.js" defer></script>
+</head>
+<body data-page="physiq-vs-wrop">
+<a class="skip" href="#main">跳到正文</a>
+<div class="progress" aria-hidden="true"><span id="progress-bar"></span></div>
+<nav class="topnav" aria-label="站点"><div class="topnav-inner"><a class="brand" href="/">thoughts</a><div class="topnav-links"><a href="/wrop-improvement-directions" title="WROP 后续改进方向">改进方向</a><a href="/wrop-metrics-zh" title="WROP 评测指标：是什么、怎么算、哪里弱">评测指标</a><a href="/wrop-rerun-cost" title="WROP 改 prompt 后重跑：时间和算力估算">重跑成本</a><a href="/wrop-h3-nvidia-speed" title="MiniMax H3 在 NVIDIA 上能跑多快：对 WROP 重跑的影响">H3 加速</a><a href="/physiq-vs-wrop" aria-current="page" title="Physics-IQ vs Object Permanence：名次对照">两榜对照</a></div></div></nav>
+
+<header class="hero">
+  <div class="hero-inner" data-section="intro" id="intro">
+    <p class="eyebrow">thoughts.ycjian.com · 研究笔记</p>
+    <h1>Physics-IQ vs Object Permanence：名次对照</h1>
+    <p class="lead">左边是 DeepMind <strong>Physics-IQ Verified</strong>（真实物理一致性自动分），右边是 <strong>Object Permanence / WROP</strong>（物体恒存人工 Elo）。两边共有 6 个模型用连线标出；连线交叉 = 名次颠倒。</p>
+    <ul class="chips" aria-label="概要"><li>Physics-IQ</li><li>WROP</li><li>名次反转</li><li>6 个共有模型</li><li>选中文字即可评论</li></ul>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc" aria-label="目录">
+    <p class="toc-title">目录</p>
+    <ol><li><a href="#s1"><span class="toc-n">1</span><span class="toc-t">一句话结论</span></a></li><li><a href="#s2"><span class="toc-n">2</span><span class="toc-t">对照图</span></a></li><li><a href="#s3"><span class="toc-n">3</span><span class="toc-t">Physics-IQ Verified（节选）</span></a></li><li><a href="#s4"><span class="toc-n">4</span><span class="toc-t">Object Permanence（WROP Elo）</span></a></li><li><a href="#s5"><span class="toc-n">5</span><span class="toc-t">重叠与反转</span></a></li><li><a href="#s6"><span class="toc-n">6</span><span class="toc-t">来源</span></a></li><li><a href="#refs"><span class="toc-n">※</span><span class="toc-t">参考文献</span></a></li></ol>
+    <a class="toc-comments" href="#comments">全部评论 <span class="count" id="toc-count">0</span></a>
+  </nav>
+
+  <main id="main">
+    <article class="doc">
+<section class="card" id="s1" data-section="s1" aria-labelledby="s1-h"><h2 id="s1-h"><span class="badge" aria-hidden="true">1</span><span class="h-num">1. </span><span class="h-t">一句话结论</span></h2>
+<blockquote data-anchor-id="s1-note-1">
+<p>两个榜测的不是同一件事。共有模型里，<strong>Seedance 2.5 与 MiniMax H3 名次反转</strong>：Physics-IQ i2v 上 Seedance 高于 H3；WROP 上 H3 并列第一、Seedance 第四。Cosmos3 Super / MAGI-1 在 Physics-IQ 偏高、在 WROP 偏低。</p>
+</blockquote>
+<p data-anchor-id="s1-p-c94c33">交互对照图（可悬停高亮连线）：<a href="/physiq-vs-wrop-rank">打开交互版</a>。</p>
+</section>
+<section class="card" id="s2" data-section="s2" aria-labelledby="s2-h"><h2 id="s2-h"><span class="badge" aria-hidden="true">2</span><span class="h-num">2. </span><span class="h-t">对照图</span></h2>
+<figure class="fig" id="fig-rank" data-anchor-id="fig-rank"><a href="/physiq-vs-wrop-rank.png" target="_blank" rel="noopener"><img src="/physiq-vs-wrop-rank.png" alt="Physics-IQ Verified 与 Object Permanence 名次对照；共有模型连线，交叉表示名次反转" loading="lazy" decoding="async"></a><figcaption>静态快照。悬停交互见 <a href="/physiq-vs-wrop-rank">交互版</a>。</figcaption></figure>
+</section>
+<section class="card" id="s3" data-section="s3" aria-labelledby="s3-h"><h2 id="s3-h"><span class="badge" aria-hidden="true">3</span><span class="h-num">3. </span><span class="h-t">Physics-IQ Verified（节选）</span></h2>
+<p data-anchor-id="s3-p-993d30">绝对分 0–100。粗体 = 两边共有。完整 Verified 表约 45 行，见 DeepMind README <sup class="cite">[<a href="#ref-physiq-readme" id="cite-physiq-readme-1">1</a>]</sup>。</p>
+<div class="table-wrap wide" data-anchor-id="s3-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">模型</th>
+<th class="num" scope="col">分数</th>
+<th scope="col">备注</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="模型"><span class="cv">Odyssey-3 Pro + BoN×8</span></td>
+<td class="num" data-label="分数"><span class="cv">66.10 (v2v)</span></td>
+<td data-label="备注"><span class="cv">榜首 v2v</span></td>
+</tr>
+<tr><td class="k" data-label="模型"><span class="cv">Odyssey-3 + BoN×8</span></td>
+<td class="num" data-label="分数"><span class="cv">64.43 (v2v)</span></td>
+<td data-label="备注"><span class="cv"></span></td>
+</tr>
+<tr><td class="k" data-label="模型"><span class="cv">FLUX 3 [large] + WMReward BoN</span></td>
+<td class="num" data-label="分数"><span class="cv">64.35 (v2v); 54.70 (i2v)</span></td>
+<td data-label="备注"><span class="cv"></span></td>
+</tr>
+<tr><td class="k" data-label="模型"><span class="cv">Odyssey-3 Pro</span></td>
+<td class="num" data-label="分数"><span class="cv">63.37 (v2v); 49.99 (i2v)</span></td>
+<td data-label="备注"><span class="cv"></span></td>
+</tr>
+<tr><td class="k" data-label="模型"><span class="cv">FLUX 3 [large]</span></td>
+<td class="num" data-label="分数"><span class="cv">61.11 (v2v); 51.11 (i2v)</span></td>
+<td data-label="备注"><span class="cv"></span></td>
+</tr>
+<tr><td class="k" data-label="模型"><span class="cv"><strong>MAGI-1 24B</strong> + GeoPhys BoN</span></td>
+<td class="num" data-label="分数"><span class="cv">58.2 (v2v); 33.7 (i2v)</span></td>
+<td data-label="备注"><span class="cv"></span></td>
+</tr>
+<tr><td class="k" data-label="模型"><span class="cv"><strong>Cosmos3 Super</strong></span></td>
+<td class="num" data-label="分数"><span class="cv">50.8 (v2v); 42.7 (i2v)</span></td>
+<td data-label="备注"><span class="cv"></span></td>
+</tr>
+<tr><td class="k" data-label="模型"><span class="cv"><strong>MAGI-1 24B</strong></span></td>
+<td class="num" data-label="分数"><span class="cv">48.4 (v2v); 30.2 (i2v)</span></td>
+<td data-label="备注"><span class="cv"></span></td>
+</tr>
+<tr><td class="k" data-label="模型"><span class="cv">Cosmos3-Nano</span></td>
+<td class="num" data-label="分数"><span class="cv">43.0 (v2v); 37.3 (i2v)</span></td>
+<td data-label="备注"><span class="cv"></span></td>
+</tr>
+<tr><td class="k" data-label="模型"><span class="cv"><strong>Seedance 2.5</strong></span></td>
+<td class="num" data-label="分数"><span class="cv">42.43 (i2v)</span></td>
+<td data-label="备注"><span class="cv"></span></td>
+</tr>
+<tr><td class="k" data-label="模型"><span class="cv"><strong>MiniMax H3</strong> (FL2VA)</span></td>
+<td class="num" data-label="分数"><span class="cv">39.8 (i2v)</span></td>
+<td data-label="备注"><span class="cv"></span></td>
+</tr>
+<tr><td class="k" data-label="模型"><span class="cv">MiniMax H3 Max</span></td>
+<td class="num" data-label="分数"><span class="cv">36.2 (i2v)</span></td>
+<td data-label="备注"><span class="cv">仅 Physics-IQ</span></td>
+</tr>
+<tr><td class="k" data-label="模型"><span class="cv"><strong>Gemini Omni Flash 1.1</strong></span></td>
+<td class="num" data-label="分数"><span class="cv">35.34 (i2v)</span></td>
+<td data-label="备注"><span class="cv"></span></td>
+</tr>
+<tr><td class="k" data-label="模型"><span class="cv"><strong>Grok Imagine</strong> Video</span></td>
+<td class="num" data-label="分数"><span class="cv">34.8 (i2v)</span></td>
+<td data-label="备注"><span class="cv"></span></td>
+</tr>
+<tr><td class="k" data-label="模型"><span class="cv">Hunyuan Video 1.5</span></td>
+<td class="num" data-label="分数"><span class="cv">33.4 (i2v)</span></td>
+<td data-label="备注"><span class="cv"></span></td>
+</tr>
+<tr><td class="k" data-label="模型"><span class="cv">Wan 2.2 14B</span></td>
+<td class="num" data-label="分数"><span class="cv">32.2 (i2v)</span></td>
+<td data-label="备注"><span class="cv">不是 Wan 3.0</span></td>
+</tr>
+<tr><td class="k" data-label="模型"><span class="cv">Veo 3.1 Lite / Fast</span></td>
+<td class="num" data-label="分数"><span class="cv">31.83 / 29.96 (i2v)</span></td>
+<td data-label="备注"><span class="cv"></span></td>
+</tr>
+<tr><td class="k" data-label="模型"><span class="cv">Sora 2</span></td>
+<td class="num" data-label="分数"><span class="cv">26.5 (i2v)</span></td>
+<td data-label="备注"><span class="cv"></span></td>
+</tr>
+</tbody>
+</table></div>
+</section>
+<section class="card" id="s4" data-section="s4" aria-labelledby="s4-h"><h2 id="s4-h"><span class="badge" aria-hidden="true">4</span><span class="h-num">4. </span><span class="h-t">Object Permanence（WROP Elo）</span></h2>
+<p data-anchor-id="s4-p-3549b2">全 14 模型。粗体 = 两边共有。排行榜见 <sup class="cite">[<a href="#ref-wrop-leaderboard" id="cite-wrop-leaderboard-2">2</a>]</sup>。</p>
+<div class="table-wrap wide stack" data-anchor-id="s4-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k num" scope="col">名次</th>
+<th scope="col">模型</th>
+<th class="num" scope="col">Elo</th>
+<th class="num" scope="col">Score rate</th>
+<th scope="col">类型</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k num" data-label="名次"><span class="cv">1</span></td>
+<td data-label="模型"><span class="cv">Wan 3.0 Prime</span></td>
+<td class="num" data-label="Elo"><span class="cv">1723.6</span></td>
+<td class="num" data-label="Score rate"><span class="cv">77.9%</span></td>
+<td data-label="类型"><span class="cv">Ref2V</span></td>
+</tr>
+<tr><td class="k num" data-label="名次"><span class="cv">2</span></td>
+<td data-label="模型"><span class="cv"><strong>MiniMax H3</strong></span></td>
+<td class="num" data-label="Elo"><span class="cv">1723.6</span></td>
+<td class="num" data-label="Score rate"><span class="cv">77.9%</span></td>
+<td data-label="类型"><span class="cv">Ref2V</span></td>
+</tr>
+<tr><td class="k num" data-label="名次"><span class="cv">3</span></td>
+<td data-label="模型"><span class="cv">PWM-WROP</span></td>
+<td class="num" data-label="Elo"><span class="cv">1679.5</span></td>
+<td class="num" data-label="Score rate"><span class="cv">73.1%</span></td>
+<td data-label="类型"><span class="cv">Continuation</span></td>
+</tr>
+<tr><td class="k num" data-label="名次"><span class="cv">4</span></td>
+<td data-label="模型"><span class="cv"><strong>Seedance 2.5</strong></span></td>
+<td class="num" data-label="Elo"><span class="cv">1649.6</span></td>
+<td class="num" data-label="Score rate"><span class="cv">69.6%</span></td>
+<td data-label="类型"><span class="cv">Ref2V</span></td>
+</tr>
+<tr><td class="k num" data-label="名次"><span class="cv">5</span></td>
+<td data-label="模型"><span class="cv">Runway Aleph 2</span></td>
+<td class="num" data-label="Elo"><span class="cv">1518.3</span></td>
+<td class="num" data-label="Score rate"><span class="cv">52.9%</span></td>
+<td data-label="类型"><span class="cv">Edit</span></td>
+</tr>
+<tr><td class="k num" data-label="名次"><span class="cv">6</span></td>
+<td data-label="模型"><span class="cv">Wan-VACE 14B</span></td>
+<td class="num" data-label="Elo"><span class="cv">1506.7</span></td>
+<td class="num" data-label="Score rate"><span class="cv">51.0%</span></td>
+<td data-label="类型"><span class="cv">Edit</span></td>
+</tr>
+<tr><td class="k num" data-label="名次"><span class="cv">7</span></td>
+<td data-label="模型"><span class="cv"><strong>Gemini Omni Flash 1.1</strong></span></td>
+<td class="num" data-label="Elo"><span class="cv">1492.5</span></td>
+<td class="num" data-label="Score rate"><span class="cv">49.0%</span></td>
+<td data-label="类型"><span class="cv">Edit</span></td>
+</tr>
+<tr><td class="k num" data-label="名次"><span class="cv">8</span></td>
+<td data-label="模型"><span class="cv">Kling O3 Pro</span></td>
+<td class="num" data-label="Elo"><span class="cv">1471.3</span></td>
+<td class="num" data-label="Score rate"><span class="cv">46.2%</span></td>
+<td data-label="类型"><span class="cv">Edit</span></td>
+</tr>
+<tr><td class="k num" data-label="名次"><span class="cv">9</span></td>
+<td data-label="模型"><span class="cv"><strong>Grok Imagine</strong> (video extend)</span></td>
+<td class="num" data-label="Elo"><span class="cv">1457.0</span></td>
+<td class="num" data-label="Score rate"><span class="cv">44.2%</span></td>
+<td data-label="类型"><span class="cv">Continuation</span></td>
+</tr>
+<tr><td class="k num" data-label="名次"><span class="cv">10</span></td>
+<td data-label="模型"><span class="cv">LTX-2.3 Extend</span></td>
+<td class="num" data-label="Elo"><span class="cv">1453.4</span></td>
+<td class="num" data-label="Score rate"><span class="cv">43.1%</span></td>
+<td data-label="类型"><span class="cv">Continuation</span></td>
+</tr>
+<tr><td class="k num" data-label="名次"><span class="cv">11</span></td>
+<td data-label="模型"><span class="cv"><strong>Cosmos3 Super</strong></span></td>
+<td class="num" data-label="Elo"><span class="cv">1409.2</span></td>
+<td class="num" data-label="Score rate"><span class="cv">37.3%</span></td>
+<td data-label="类型"><span class="cv">Edit</span></td>
+</tr>
+<tr><td class="k num" data-label="名次"><span class="cv">12</span></td>
+<td data-label="模型"><span class="cv">LTX-2.3 Dev</span></td>
+<td class="num" data-label="Elo"><span class="cv">1398.9</span></td>
+<td class="num" data-label="Score rate"><span class="cv">36.5%</span></td>
+<td data-label="类型"><span class="cv">Edit</span></td>
+</tr>
+<tr><td class="k num" data-label="名次"><span class="cv">13</span></td>
+<td data-label="模型"><span class="cv">HY-OmniWeaving</span></td>
+<td class="num" data-label="Elo"><span class="cv">1268.5</span></td>
+<td class="num" data-label="Score rate"><span class="cv">21.0%</span></td>
+<td data-label="类型"><span class="cv">Edit</span></td>
+</tr>
+<tr><td class="k num" data-label="名次"><span class="cv">14</span></td>
+<td data-label="模型"><span class="cv"><strong>MAGI-1 24B</strong></span></td>
+<td class="num" data-label="Elo"><span class="cv">1248.0</span></td>
+<td class="num" data-label="Score rate"><span class="cv">19.2%</span></td>
+<td data-label="类型"><span class="cv">Continuation</span></td>
+</tr>
+</tbody>
+</table></div>
+</section>
+<section class="card" id="s5" data-section="s5" aria-labelledby="s5-h"><h2 id="s5-h"><span class="badge" aria-hidden="true">5</span><span class="h-num">5. </span><span class="h-t">重叠与反转</span></h2>
+<p data-anchor-id="s5-p-96bed3">两边都有：<strong>Seedance 2.5、MiniMax H3、Cosmos3 Super、MAGI-1 24B、Gemini Omni Flash 1.1、Grok Imagine</strong>。</p>
+<div class="table-wrap wide stack" data-anchor-id="s5-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">模型</th>
+<th scope="col">Physics-IQ（本页节选位次 / 分）</th>
+<th scope="col">WROP 名次 / Elo</th>
+<th scope="col">走势</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="模型"><span class="cv">MiniMax H3</span></td>
+<td data-label="Physics-IQ（本页节选位次 / 分）"><span class="cv">#10 · 39.8 i2v</span></td>
+<td data-label="WROP 名次 / Elo"><span class="cv">#2 · 1723.6</span></td>
+<td data-label="走势"><span class="cv">大幅上升</span></td>
+</tr>
+<tr><td class="k" data-label="模型"><span class="cv">Seedance 2.5</span></td>
+<td data-label="Physics-IQ（本页节选位次 / 分）"><span class="cv">#9 · 42.43 i2v</span></td>
+<td data-label="WROP 名次 / Elo"><span class="cv">#4 · 1649.6</span></td>
+<td data-label="走势"><span class="cv">上升；与 H3 交叉</span></td>
+</tr>
+<tr><td class="k" data-label="模型"><span class="cv">Gemini Omni Flash 1.1</span></td>
+<td data-label="Physics-IQ（本页节选位次 / 分）"><span class="cv">#12 · 35.34 i2v</span></td>
+<td data-label="WROP 名次 / Elo"><span class="cv">#7 · 1492.5</span></td>
+<td data-label="走势"><span class="cv">上升</span></td>
+</tr>
+<tr><td class="k" data-label="模型"><span class="cv">Grok Imagine</span></td>
+<td data-label="Physics-IQ（本页节选位次 / 分）"><span class="cv">#13 · 34.8 i2v</span></td>
+<td data-label="WROP 名次 / Elo"><span class="cv">#9 · 1457.0</span></td>
+<td data-label="走势"><span class="cv">上升</span></td>
+</tr>
+<tr><td class="k" data-label="模型"><span class="cv">Cosmos3 Super</span></td>
+<td data-label="Physics-IQ（本页节选位次 / 分）"><span class="cv">#6 · 50.8 v2v / 42.7 i2v</span></td>
+<td data-label="WROP 名次 / Elo"><span class="cv">#11 · 1409.2</span></td>
+<td data-label="走势"><span class="cv">下降</span></td>
+</tr>
+<tr><td class="k" data-label="模型"><span class="cv">MAGI-1 24B</span></td>
+<td data-label="Physics-IQ（本页节选位次 / 分）"><span class="cv">#7 · 48.4 v2v / 30.2 i2v</span></td>
+<td data-label="WROP 名次 / Elo"><span class="cv">#14 · 1248.0</span></td>
+<td data-label="走势"><span class="cv">大幅下降</span></td>
+</tr>
+</tbody>
+</table></div>
+<aside class="callout callout-note" role="note" id="s5-note-dc8a6a" data-anchor-id="s5-note-dc8a6a"><p class="callout-title">说明</p><p>Physics-IQ = 真实物理视频上的自动一致性分；WROP = 物体恒存 / 固体性题上的盲测人工 Elo。构造不同，名次反转是预期现象，不是噪声。</p>
+</aside>
+</section>
+<section class="card" id="s6" data-section="s6" aria-labelledby="s6-h"><h2 id="s6-h"><span class="badge" aria-hidden="true">6</span><span class="h-num">6. </span><span class="h-t">来源</span></h2>
+<ul>
+<li>Physics-IQ Verified：<sup class="cite">[<a href="#ref-physiq-readme" id="cite-physiq-readme-1">1</a>]</sup>；看板 <sup class="cite">[<a href="#ref-physiq-anates" id="cite-physiq-anates-3">3</a>]</sup></li>
+<li>Object Permanence / WROP：<sup class="cite">[<a href="#ref-wrop-leaderboard" id="cite-wrop-leaderboard-2">2</a>]</sup>；论文 <sup class="cite">[<a href="#ref-wrop-arxiv" id="cite-wrop-arxiv-4">4</a>]</sup></li>
+<li>官方拼写是 <strong>Seedance</strong> 2.5（不是 Sedance）</li>
+<li>交互页：<a href="/physiq-vs-wrop-rank">/physiq-vs-wrop-rank</a>（站点内嵌静态页 + JS）</li>
+</ul>
+</section>
+<section class="card refs" id="refs" data-section="refs" aria-labelledby="refs-h"><h2 id="refs-h"><span class="h-t">参考文献</span></h2><ol class="references"><li id="ref-physiq-readme"><a href="https://github.com/google-deepmind/physics-IQ-benchmark/blob/main/README.md" target="_blank" rel="noopener noreferrer">Physics-IQ benchmark README (Verified)</a></li><li id="ref-wrop-leaderboard"><a href="https://object-permanence.world/leaderboard" target="_blank" rel="noopener noreferrer">Object Permanence leaderboard</a></li><li id="ref-physiq-anates"><a href="https://physics-iq-verified.anates.ai/" target="_blank" rel="noopener noreferrer">Physics-IQ Verified board</a></li><li id="ref-wrop-arxiv">WROP / object permanence paper, <a href="https://arxiv.org/abs/2609.28654" target="_blank" rel="noopener noreferrer">arXiv:2609.28654</a></li></ol></section>
+    </article>
+
+    <nav class="more" aria-label="其他页面">
+      <ul><li><a class="more-card" href="/wrop-improvement-directions"><span class="more-k">另一篇</span><span class="more-t">WROP 后续改进方向</span></a></li><li><a class="more-card" href="/wrop-metrics-zh"><span class="more-k">另一篇</span><span class="more-t">WROP 评测指标：是什么、怎么算、哪里弱</span></a></li><li><a class="more-card" href="/wrop-rerun-cost"><span class="more-k">另一篇</span><span class="more-t">WROP 改 prompt 后重跑：时间和算力估算</span></a></li><li><a class="more-card" href="/wrop-h3-nvidia-speed"><span class="more-k">另一篇</span><span class="more-t">MiniMax H3 在 NVIDIA 上能跑多快：对 WROP 重跑的影响</span></a></li><li><a class="more-card" href="/"><span class="more-k">首页</span><span class="more-t">全部页面</span></a></li></ul>
+    </nav>
+
+    <section class="comments" id="comments" aria-labelledby="comments-h">
+      <h2 id="comments-h">评论 <span class="count" id="list-count">0</span></h2>
+      <p class="hint">选中正文里的文字。点「评论」按钮。评论会贴在那段文字上。</p>
+      <p class="hint">无需登录。任何人都可以回复、编辑、删除、解决任何评论。昵称可不填，会记在本浏览器里。</p>
+      <button type="button" class="btn ghost" id="page-comment">评论整篇</button>
+      <p class="empty" id="list-empty">还没有评论。</p>
+      <ol class="thread-list" id="thread-list"></ol>
+    </section>
+  </main>
+</div>
+
+<footer class="foot">
+  <p>来源：<code>content/physiq-vs-wrop.md</code>。更新于 2026-10-09。</p>
+  <p>托管于 Cloudflare。评论公开，任何人可改。</p>
+</footer>
+
+<button type="button" class="sel-btn" id="sel-btn" hidden>评论</button>
+
+<div class="scrim" id="scrim" hidden></div>
+<aside class="panel" id="panel" role="dialog" aria-modal="true" aria-labelledby="panel-h" hidden>
+  <div class="panel-head">
+    <h2 id="panel-h">评论</h2>
+    <button type="button" class="icon-btn" id="panel-close" aria-label="关闭">×</button>
+  </div>
+  <div class="panel-body">
+    <blockquote class="panel-quote" id="panel-quote" hidden></blockquote>
+    <ol class="thread" id="panel-thread"></ol>
+    <form class="composer" id="composer" novalidate>
+      <label class="field" id="f-nick-field">
+        <span>昵称（可不填）</span>
+        <input type="text" id="f-nick" maxlength="40" autocomplete="nickname" placeholder="匿名">
+      </label>
+      <label class="field">
+        <span id="f-body-label">评论</span>
+        <textarea id="f-body" maxlength="2000" rows="4" required placeholder="写下你的看法。"></textarea>
+      </label>
+      <div class="form-foot">
+        <span class="counter" id="f-count">0 / 2000</span>
+        <button type="submit" class="btn" id="f-submit">发布</button>
+      </div>
+      <p class="form-msg" id="f-msg" role="status" aria-live="polite"></p>
+    </form>
+  </div>
+</aside>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

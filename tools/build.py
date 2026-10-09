@@ -18,7 +18,7 @@ from markdown_it import MarkdownIt  # noqa: E402
 from mdit_py_plugins.attrs import attrs_plugin  # noqa: E402
 from mdit_py_plugins.container import container_plugin  # noqa: E402
 
-STATIC = {"app.js", "style.css", "favicon.svg"}       # hand-written files in public/
+STATIC = {"app.js", "style.css", "favicon.svg", "physiq-vs-wrop-rank.html", "physiq-vs-wrop-rank.js"}  # hand-written files in public/
 ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$")  # same charset the comments API accepts
 SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,79}$")
 FM_KEYS = {"title": str, "slug": str, "short": str, "description": str, "chips": list,

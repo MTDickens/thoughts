@@ -2,3 +2,7 @@
 # Cite in a page with [@key] or [@a; @b]. Unknown keys fail the build.
 # Quote the text if it contains ": " or starts with a special character. Example:
 # elo-wiki: "Wikipedia: [Elo rating system](https://en.wikipedia.org/wiki/Elo_rating_system)"
+physiq-readme: "[Physics-IQ benchmark README (Verified)](https://github.com/google-deepmind/physics-IQ-benchmark/blob/main/README.md)"
+physiq-anates: "[Physics-IQ Verified board](https://physics-iq-verified.anates.ai/)"
+wrop-leaderboard: "[Object Permanence leaderboard](https://object-permanence.world/leaderboard)"
+wrop-arxiv: "WROP / object permanence paper, [arXiv:2609.28654](https://arxiv.org/abs/2609.28654)"
