@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dust / Noise：无反向传播预训练与 Boost → Cut · thoughts</title>
+<meta name="description" content="Q Labs 的 Dust 与 Noise、Boost → Cut 加速、bitter lesson 相关原话、以及零阶优化的学术背景。只记已核实事实。">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f7f6f2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css">
+<script src="/app.js" defer></script>
+</head>
+<body data-page="dust-noise-zo">
+<a class="skip" href="#main">跳到正文</a>
+<div class="progress" aria-hidden="true"><span id="progress-bar"></span></div>
+<nav class="topnav" aria-label="站点"><div class="topnav-inner"><a class="brand" href="/">thoughts</a><div class="topnav-links"><a href="/wrop-improvement-directions" title="WROP 后续改进方向">改进方向</a><a href="/wrop-metrics-zh" title="WROP 评测指标：是什么、怎么算、哪里弱">评测指标</a><a href="/wrop-rerun-cost" title="WROP 改 prompt 后重跑：时间和算力估算">重跑成本</a><a href="/wrop-h3-nvidia-speed" title="MiniMax H3 在 NVIDIA 上能跑多快：对 WROP 重跑的影响">H3 加速</a><a href="/wrop-wan-speed" title="用 Wan 重跑 WROP：能跑多快、要花多少钱">Wan 重跑速度</a><a href="/wrop-train-prompts-over" title="WROP 训练提示词：OVER 有多少">训练 OVER</a><a href="/physiq-vs-wrop" title="Physics-IQ vs Object Permanence：名次对照">两榜对照</a><a href="/dust-noise-zo" aria-current="page" title="Dust / Noise：无反向传播预训练与 Boost → Cut">Dust / Noise</a></div></div></nav>
+
+<header class="hero">
+  <div class="hero-inner" data-section="intro" id="intro">
+    <p class="eyebrow">thoughts.ycjian.com · 研究笔记</p>
+    <h1>Dust / Noise：无反向传播预训练与 Boost → Cut</h1>
+    <p class="lead">依据 Q Labs 论文与仓库、Noise 榜与 PR、Boost → Cut 作者帖与草稿论文、相关 X 原话。时间一律标台北时间（UTC+8）。榜单与开放 PR 会变；本文快照到 2026-10-19 约 18:37。</p>
+    <ul class="chips" aria-label="概要"><li>Dust</li><li>Noise</li><li>Boost → Cut</li><li>零阶优化</li><li>选中文字即可评论</li></ul>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc" aria-label="目录">
+    <p class="toc-title">目录</p>
+    <ol><li><a href="#s1"><span class="toc-n">1</span><span class="toc-t">一句话结论</span></a></li><li><a href="#s2"><span class="toc-n">2</span><span class="toc-t">Dust：方法与结果</span></a></li><li><a href="#s3"><span class="toc-n">3</span><span class="toc-t">Noise：无反传预训练竞速</span></a></li><li><a href="#s4"><span class="toc-n">4</span><span class="toc-t">Boost → Cut：当前已合并纪录</span></a></li><li><a href="#s5"><span class="toc-n">5</span><span class="toc-t">Bitter lesson / Adam：记忆原话未找到</span></a></li><li><a href="#s6"><span class="toc-n">6</span><span class="toc-t">开放 PR（未合并，勿当纪录）</span></a></li><li><a href="#s7"><span class="toc-n">7</span><span class="toc-t">学术史（仅背景）</span></a></li><li><a href="#s8"><span class="toc-n">8</span><span class="toc-t">仍未知 / 待跟</span></a></li><li><a href="#refs"><span class="toc-n">※</span><span class="toc-t">参考文献</span></a></li></ol>
+    <a class="toc-comments" href="#comments">全部评论 <span class="count" id="toc-count">0</span></a>
+  </nav>
+
+  <main id="main">
+    <article class="doc">
+<section class="card" id="s1" data-section="s1" aria-labelledby="s1-h"><h2 id="s1-h"><span class="badge" aria-hidden="true">1</span><span class="h-num">1. </span><span class="h-t">一句话结论</span></h2>
+<blockquote data-anchor-id="s1-note-1">
+<p>Dust 用激活扰动估计信用，不用反向传播。Noise 是固定设定下的无反传竞速赛。Boost → Cut 是当前已合并的 Track 1 纪录（val 约 3.945，约 8 分钟）。它对 Dust 旧纪录约 9.4 倍墙钟加速；其中约 2.3 倍来自稀疏神经元捷径。作者草稿仍报：相对反向传播约 136 倍 FLOPs、约 4.4 倍显存。PR #17（CutBI）自称 val 3.728，<strong>尚未合并、维护者未核实</strong>。</p>
+</blockquote>
+<div class="table-wrap" data-anchor-id="s1-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">项</th>
+<th scope="col">状态（2026-10-19）</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="项"><span class="cv">Dust 论文</span></td>
+<td data-label="状态（2026-10-19）"><span class="cv"><a href="https://qlabs.sh/research/dust/" target="_blank" rel="noopener noreferrer">qlabs.sh/research/dust</a>，无 arXiv 编号</span></td>
+</tr>
+<tr><td class="k" data-label="项"><span class="cv">Noise 官方榜 Track 1</span></td>
+<td data-label="状态（2026-10-19）"><span class="cv">Boost → Cut，val <strong>3.945</strong>，约 8 分钟</span></td>
+</tr>
+<tr><td class="k" data-label="项"><span class="cv">Noise 官方榜 Track 2</span></td>
+<td data-label="状态（2026-10-19）"><span class="cv">Boost，val <strong>4.123</strong>，约 5 分钟</span></td>
+</tr>
+<tr><td class="k" data-label="项"><span class="cv">反传参考（README）</span></td>
+<td data-label="状态（2026-10-19）"><span class="cv">SGD <strong>5.007</strong>；Adam + lr cooldown <strong>3.769</strong></span></td>
+</tr>
+<tr><td class="k" data-label="项"><span class="cv">PR #17 CutBI</span></td>
+<td data-label="状态（2026-10-19）"><span class="cv">自称 val <strong>3.728</strong> / 518 s；<strong>开放、未合并</strong></span></td>
+</tr>
+<tr><td class="k" data-label="项"><span class="cv">「不用 Adam / 纯零阶搜索」那段记忆原话</span></td>
+<td data-label="状态（2026-10-19）"><span class="cv"><strong>未找到</strong></span></td>
+</tr>
+</tbody>
+</table></div>
+</section>
+<section class="card" id="s2" data-section="s2" aria-labelledby="s2-h"><h2 id="s2-h"><span class="badge" aria-hidden="true">2</span><span class="h-num">2. </span><span class="h-t">Dust：方法与结果</span></h2>
+<blockquote data-anchor-id="s2-note-1">
+<p>论文标题：<em>Dust: Pretraining Transformers Without Backpropagation</em>。作者：Samip Dahal、Bishwas Mandal、Serdar Gülbahar、Akshay Vegesna。日期写「October 2026」。代码：<a href="https://github.com/qlabs-eng/dust" target="_blank" rel="noopener noreferrer">qlabs-eng/dust</a>。<sup class="cite">[<a href="#ref-dust-paper" id="cite-dust-paper-1">1</a>,<a href="#ref-dust-code" id="cite-dust-code-2">2</a>]</sup></p>
+</blockquote>
+<h3 id="s2-method">核心做法</h3>
+<blockquote data-anchor-id="s2-note-2">
+<p>不扰动权重，而扰动每层线性层的输出。每个 token 独立加高斯噪声。用该 token 上 loss 的变化给噪声打分。奖励加权的噪声，再与输入做外积，得到权重梯度估计。论文称这是一种 node perturbation。<sup class="cite">[<a href="#ref-dust-paper" id="cite-dust-paper-1">1</a>]</sup></p>
+</blockquote>
+<blockquote data-anchor-id="s2-note-3">
+<p>一次前向可并行评估大量扰动（「虚拟种群」）。论文宣称相对 EGGROLL 量级约 <strong>10³–10⁴</strong> 倍更高效。<sup class="cite">[<a href="#ref-dust-paper" id="cite-dust-paper-1">1</a>,<a href="#ref-eggroll" id="cite-eggroll-3">3</a>]</sup></p>
+</blockquote>
+<h3 id="s2-results">设定与头条结果</h3>
+<blockquote data-anchor-id="s2-note-4">
+<p>FineWeb、4096 BPE、batch 16k token、单 epoch、SGD+momentum。基座模型 8 层 × 宽 512。<sup class="cite">[<a href="#ref-dust-paper" id="cite-dust-paper-1">1</a>]</sup></p>
+</blockquote>
+<blockquote data-anchor-id="s2-note-5">
+<p>用 SGD 时，Dust 在小数据预算上可接近甚至低于反传。用 Adam 时，作者也报 Dust 的拟合极限可接近反传。独立复现指出：SGD 下接近；AdamW 下 Dust 仍落后约 0.5 nat，且 GPU 小时约是反传的 2000 倍量级（Benhao Huang / @huskydogewoof，2026-10-07）。<sup class="cite">[<a href="#ref-dust-paper" id="cite-dust-paper-1">1</a>]</sup></p>
+</blockquote>
+<blockquote data-anchor-id="s2-note-6">
+<p>Samip 发布帖（2026-10-06 03:41）：「first zeroth-order method to pretrain transformers to approach and sometimes even <em>exceed</em> backprop」。<sup class="cite">[<a href="#ref-samip-dust4" id="cite-samip-dust4-4">4</a>]</sup></p>
+</blockquote>
+</section>
+<section class="card" id="s3" data-section="s3" aria-labelledby="s3-h"><h2 id="s3-h"><span class="badge" aria-hidden="true">3</span><span class="h-num">3. </span><span class="h-t">Noise：无反传预训练竞速</span></h2>
+<blockquote data-anchor-id="s3-note-1">
+<p>页面：<a href="https://qlabs.sh/noise/" target="_blank" rel="noopener noreferrer">qlabs.sh/noise</a>。仓库：<a href="https://github.com/qlabs-eng/noise" target="_blank" rel="noopener noreferrer">qlabs-eng/noise</a>。发布约 2026-10-13 04:17。<sup class="cite">[<a href="#ref-noise-page" id="cite-noise-page-5">5</a>,<a href="#ref-noise-repo" id="cite-noise-repo-6">6</a>]</sup></p>
+</blockquote>
+<h3 id="s3-rules">规则（固定什么）</h3>
+<blockquote data-anchor-id="s3-note-2">
+<p>模型固定：37.7M GPT，最终权重必须严格载入 <code>utils/model.py</code>。数据固定：FineWeb 子集 <code>data/train.pt</code>，至多一个 epoch。评分：<code>utils/eval.py</code> 在 <code>data/val.pt</code> 上的平均 next-token 交叉熵。硬件：一台 <strong>8×H100</strong>。</p>
+</blockquote>
+<blockquote data-anchor-id="s3-note-3">
+<p><strong>禁止反向传播</strong>：禁止 autograd（正/反向模式），禁止手写反向。学习信号只能来自前向评估。初始化、batch、如何使用前向次数自由。纪录用 PR 提交。</p>
+</blockquote>
+<h3 id="s3-tracks">两条赛道</h3>
+<div class="table-wrap" data-anchor-id="s3-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">赛道</th>
+<th scope="col">目标</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="赛道"><span class="cv">Track 1</span></td>
+<td data-label="目标"><span class="cv">单 epoch 后最低 validation loss（无时间上限）</span></td>
+</tr>
+<tr><td class="k" data-label="赛道"><span class="cv">Track 2</span></td>
+<td data-label="目标"><span class="cv">达到 val loss <strong>4.2</strong> 的最短训练时间</span></td>
+</tr>
+</tbody>
+</table></div>
+<blockquote data-anchor-id="s3-note-4">
+<p>README 反传参考：SGD <strong>5.007</strong>；Adam + lr cooldown <strong>3.769</strong>。目标写明：大幅超过反传。</p>
+</blockquote>
+<h3 id="s3-board">官方榜快照（已合并纪录）</h3>
+<blockquote data-anchor-id="s3-note-5">
+<p>以下为 README 已合并条目（2026-10-19 晚间仍如此）。数字会变。</p>
+</blockquote>
+<p data-anchor-id="s3-p-d88d0b"><strong>Track 1（val loss ↓）</strong></p>
+<div class="table-wrap wide stack" data-anchor-id="s3-table-2" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">#</th>
+<th class="num" scope="col">Val</th>
+<th scope="col">说明</th>
+<th scope="col">时间</th>
+<th scope="col">贡献者</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="#"><span class="cv">1</span></td>
+<td class="num" data-label="Val"><span class="cv">5.954</span></td>
+<td data-label="说明"><span class="cv">EGGROLL + Adam，128k antithetic</span></td>
+<td data-label="时间"><span class="cv">5 h 20 min</span></td>
+<td data-label="贡献者"><span class="cv">–</span></td>
+</tr>
+<tr><td class="k" data-label="#"><span class="cv">2</span></td>
+<td class="num" data-label="Val"><span class="cv">5.058</span></td>
+<td data-label="说明"><span class="cv">Dust + SGD，16k population</span></td>
+<td data-label="时间"><span class="cv">1 h 19 min</span></td>
+<td data-label="贡献者"><span class="cv">–</span></td>
+</tr>
+<tr><td class="k" data-label="#"><span class="cv">3</span></td>
+<td class="num" data-label="Val"><span class="cv">4.167</span></td>
+<td data-label="说明"><span class="cv">Dust + Adam，24k，lr cooldown</span></td>
+<td data-label="时间"><span class="cv">1 h 46 min</span></td>
+<td data-label="贡献者"><span class="cv">–</span></td>
+</tr>
+<tr><td class="k" data-label="#"><span class="cv">…</span></td>
+<td class="num" data-label="Val"><span class="cv">…</span></td>
+<td data-label="说明"><span class="cv">中间若干工程改进</span></td>
+<td data-label="时间"><span class="cv">…</span></td>
+<td data-label="贡献者"><span class="cv">…</span></td>
+</tr>
+<tr><td class="k" data-label="#"><span class="cv">8</span></td>
+<td class="num" data-label="Val"><span class="cv">3.991</span></td>
+<td data-label="说明"><span class="cv">降到 16k population</span></td>
+<td data-label="时间"><span class="cv">1 h 12 min</span></td>
+<td data-label="贡献者"><span class="cv">@serdardoesml</span></td>
+</tr>
+<tr><td class="k" data-label="#"><span class="cv"><strong>9</strong></span></td>
+<td class="num" data-label="Val"><span class="cv"><strong>3.945</strong></span></td>
+<td data-label="说明"><span class="cv"><strong>Boost → Cut</strong></span></td>
+<td data-label="时间"><span class="cv"><strong>约 8 min</strong></span></td>
+<td data-label="贡献者"><span class="cv"><strong>@spicylemonade</strong></span></td>
+</tr>
+</tbody>
+</table></div>
+<p data-anchor-id="s3-p-53be06"><strong>Track 2（到 4.2 的时间 ↓）</strong></p>
+<div class="table-wrap wide stack" data-anchor-id="s3-table-3" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">#</th>
+<th class="num" scope="col">Val</th>
+<th scope="col">说明</th>
+<th scope="col">时间</th>
+<th scope="col">贡献者</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="#"><span class="cv">1</span></td>
+<td class="num" data-label="Val"><span class="cv">4.167</span></td>
+<td data-label="说明"><span class="cv">Dust + Adam</span></td>
+<td data-label="时间"><span class="cv">1 h 46 min</span></td>
+<td data-label="贡献者"><span class="cv">–</span></td>
+</tr>
+<tr><td class="k" data-label="#"><span class="cv">…</span></td>
+<td class="num" data-label="Val"><span class="cv">…</span></td>
+<td data-label="说明"><span class="cv">…</span></td>
+<td data-label="时间"><span class="cv">…</span></td>
+<td data-label="贡献者"><span class="cv">…</span></td>
+</tr>
+<tr><td class="k" data-label="#"><span class="cv"><strong>4</strong></span></td>
+<td class="num" data-label="Val"><span class="cv"><strong>4.123</strong></span></td>
+<td data-label="说明"><span class="cv"><strong>Boost（仅阶段一）</strong></span></td>
+<td data-label="时间"><span class="cv"><strong>约 5 min</strong></span></td>
+<td data-label="贡献者"><span class="cv"><strong>@spicylemonade</strong></span></td>
+</tr>
+</tbody>
+</table></div>
+<aside class="callout callout-warning" role="note" id="s3-warning-dd017a" data-anchor-id="s3-warning-dd017a"><p class="callout-title">开放 PR 不是纪录</p><p>PR #14–#17 等作者自报数字<strong>未写入</strong>上表。维护者未合并前，不当作官方纪录。见 §6。</p>
+</aside>
+</section>
+<section class="card" id="s4" data-section="s4" aria-labelledby="s4-h"><h2 id="s4-h"><span class="badge" aria-hidden="true">4</span><span class="h-num">4. </span><span class="h-t">Boost → Cut：当前已合并纪录</span></h2>
+<blockquote data-anchor-id="s4-note-1">
+<p>作者：@spicey_lemonade（GitHub <code>spicylemonade</code>）。帖：<a href="https://x.com/spicey_lemonade/status/2111636408540799141" target="_blank" rel="noopener noreferrer">2026-10-18 09:52</a>。代码：<a href="https://github.com/spicylemonade/boost-cut" target="_blank" rel="noopener noreferrer">boost-cut</a>。Noise PR <strong>#11</strong>（Track 1）与 <strong>#12</strong>（Track 2）于当日约 15:48 由 <code>serdardoesml</code> 合并；@cs_serdar 写「insane, reproduced and merged!」。<sup class="cite">[<a href="#ref-boost-cut-post" id="cite-boost-cut-post-7">7</a>,<a href="#ref-boost-cut-code" id="cite-boost-cut-code-8">8</a>]</sup></p>
+</blockquote>
+<h3 id="s4-method">两阶段规则</h3>
+<blockquote data-anchor-id="s4-note-2">
+<p><strong>Boost（前 30% epoch）</strong>：每个 attention / MLP 层只对着「紧挨其后的 residual 读出头」（logit lens 当训练目标）学。每个 token 的信用用前向差分精确测量。</p>
+</blockquote>
+<blockquote data-anchor-id="s4-note-3">
+<p><strong>Cut（后 70%）</strong>：端到端信用。attention 输出固定为 clean 值。每个 token 只通过 MLP 中输出贡献最大的 <strong>128 / 2048</strong> 个单元传信用；其余单元固定。Keys 用 closed-form 单 key 实验。</p>
+</blockquote>
+<blockquote data-anchor-id="s4-note-4">
+<p>优化器仍叠在估计之上：纪录配方用 <strong>ANVIL II + Adam</strong>。规则合规说明：每个学习信号都是扰动下 loss 的实测变化；无 autograd、无反向（autograd 仅用于分析核对）。</p>
+</blockquote>
+<h3 id="s4-2p3x">2.3× 与 9.4×：已澄清</h3>
+<blockquote data-anchor-id="s4-note-5">
+<p>原帖写「2.3x speedup」。附图 y 轴是平滑 <strong>training</strong> loss，不是 val；蓝线约 7.6 min，粉线 Dust 纪录约 72 min · val 3.991。</p>
+</blockquote>
+<blockquote data-anchor-id="s4-note-6">
+<p>作者答复 @kdpisda（<a href="https://x.com/spicey_lemonade/status/2111886525734764840" target="_blank" rel="noopener noreferrer">2026-10-19 02:25</a>）：</p>
+</blockquote>
+<blockquote data-anchor-id="s4-note-7">
+<p>「9.4x for the total method (lots of engineering). 2.3x from the sparse-neuron shortcut inspired by Nick’s essay, compared to the method without that shortcut. But yes, it’s a 9.4x speedup over Dust baseline in total.」</p>
+</blockquote>
+<div class="table-wrap" data-anchor-id="s4-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">数字</th>
+<th scope="col">含义</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="数字"><span class="cv"><strong>约 2.3×</strong></span></td>
+<td data-label="含义"><span class="cv">相对「关掉稀疏神经元捷径」的同方法加速（Cammarata 启发）</span></td>
+</tr>
+<tr><td class="k" data-label="数字"><span class="cv"><strong>约 9.4×</strong></span></td>
+<td data-label="含义"><span class="cv">整套 Boost → Cut 相对 Dust 旧纪录的墙钟加速</span></td>
+</tr>
+</tbody>
+</table></div>
+<p data-anchor-id="s4-p-e376f1"><sup class="cite">[<a href="#ref-boost-cut-2p3x" id="cite-boost-cut-2p3x-9">9</a>]</sup></p>
+<h3 id="s4-cammarata">与 Cammarata 文章的关系</h3>
+<blockquote data-anchor-id="s4-note-8">
+<p>文章：<a href="https://www.goodfire.com/research/already-clean" target="_blank" rel="noopener noreferrer">Neural Networks Are Already Clean</a>（Goodfire，Nick Cammarata；X 发布约 2026-10-15 23:40）。作者自述用到两点：<strong>Strong routes</strong>（弱激活几乎可消、功能骑在强激活上）与 <strong>circuit racing / head start</strong>（解释为何 Boost 先跑）。<sup class="cite">[<a href="#ref-cammarata-essay" id="cite-cammarata-essay-10">10</a>]</sup></p>
+</blockquote>
+<h3 id="s4-cost">相对反传的代价（作者草稿）</h3>
+<blockquote data-anchor-id="s4-note-9">
+<p>草稿论文在仓库 <code>llm-slop-review/draft.md</code>（README：LLM 代写、仍在审）。自报：</p>
+</blockquote>
+<div class="table-wrap" data-anchor-id="s4-table-2" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">对比</th>
+<th scope="col">数字</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="对比"><span class="cv">相对 Dust 旧纪录</span></td>
+<td data-label="数字"><span class="cv">约 <strong>24×</strong> 更少的矩阵 FLOPs</span></td>
+</tr>
+<tr><td class="k" data-label="对比"><span class="cv">相对反向传播 FLOPs</span></td>
+<td data-label="数字"><span class="cv">仍约 <strong>136×</strong></span></td>
+</tr>
+<tr><td class="k" data-label="对比"><span class="cv">相对反向传播显存</span></td>
+<td data-label="数字"><span class="cv">约 <strong>4.4×</strong></span></td>
+</tr>
+<tr><td class="k" data-label="对比"><span class="cv">Loss 差距（7.3M–243M）</span></td>
+<td data-label="数字"><span class="cv">持续约 <strong>0.23–0.26</strong> nats（243M 终配待跑完）</span></td>
+</tr>
+<tr><td class="k" data-label="对比"><span class="cv">同模型同优化器反传 test</span></td>
+<td data-label="数字"><span class="cv"><strong>3.706 ± 0.009</strong>；Boost → Cut test <strong>3.935 ± 0.012</strong></span></td>
+</tr>
+</tbody>
+</table></div>
+<blockquote data-anchor-id="s4-note-10">
+<p>结论口径：比别的零阶快很多；比反传仍慢很多、loss 仍高一截。</p>
+</blockquote>
+<h3 id="s4-critique">Leo Gao 的批评</h3>
+<blockquote data-anchor-id="s4-note-11">
+<p><a href="https://x.com/nabla_theta/status/2111738788988977454" target="_blank" rel="noopener noreferrer">@nabla_theta</a>（2026-10-18 16:38）回复「mech interp 就是换名的能力研究」：</p>
+</blockquote>
+<blockquote data-anchor-id="s4-note-12">
+<p>「i strongly predict this tweet is looking at an extremely poorly optimized baseline, and the ideas in the essay do not help well tuned training stacks. it's like dropping entire layers from shitty models.」</p>
+</blockquote>
+<blockquote data-anchor-id="s4-note-13">
+<p>这是预测，不是他给出的实测。含义：加速是相对粗糙的 Dust 纪录算的；在已调好的训练栈上，「砍弱激活」未必有用。<sup class="cite">[<a href="#ref-leo-gao-critique" id="cite-leo-gao-critique-11">11</a>]</sup></p>
+</blockquote>
+<h3 id="s4-overnight">隔夜反应（Q Labs）</h3>
+<blockquote data-anchor-id="s4-note-14">
+<p>Samip（<a href="https://x.com/industriaalist/status/2111902667895411183" target="_blank" rel="noopener noreferrer">2026-10-19 03:30</a>）：约 10× 加速；认为接下来会出现很多「不像反传」的信用分配算法。</p>
+</blockquote>
+<blockquote data-anchor-id="s4-note-15">
+<p>Bishwas（<a href="https://x.com/bishmdl76/status/2111908825423131131" target="_blank" rel="noopener noreferrer">同日 03:54</a>）：一周已有趣进展；年底前再提 <strong>1000×</strong> 效率「pretty sure」。</p>
+</blockquote>
+</section>
+<section class="card" id="s5" data-section="s5" aria-labelledby="s5-h"><h2 id="s5-h"><span class="badge" aria-hidden="true">5</span><span class="h-num">5. </span><span class="h-t">Bitter lesson / Adam：记忆原话未找到</span></h2>
+<aside class="callout callout-warning" role="note" id="s5-warning-db2532" data-anchor-id="s5-warning-db2532"><p class="callout-title">NOT FOUND</p><p>未找到与记忆完全对应的原文：「大家以为 Adam 近最优 → 后来发现不用 Adam、纯零阶搜索也行」。检索范围含 Samip 帖、Dust/Noise 线程、Boost → Cut 回复、Cammarata 近帖、Dust 论文与 Noise 页/README。X 全文检索偏关键词，释义帖仍可能漏网。以下是<strong>最接近的已核实原话</strong>。</p>
+</aside>
+<blockquote data-anchor-id="s5-note-1">
+<p>Samip，Dust 线程 4/4：<sup class="cite">[<a href="#ref-samip-dust4" id="cite-samip-dust4-4">4</a>]</sup></p>
+</blockquote>
+<blockquote data-anchor-id="s5-note-2">
+<p>「the bitter lesson will strike optimization research too, and zeroth-order methods (i.e. the simplest form of optimization) might eventually replace backprop altogether!」</p>
+</blockquote>
+<blockquote data-anchor-id="s5-note-3">
+<p>Samip 谈 Adam：<sup class="cite">[<a href="#ref-samip-adam" id="cite-samip-adam-12">12</a>]</sup></p>
+</blockquote>
+<blockquote data-anchor-id="s5-note-4">
+<p>「adam wasn't the main focus of the paper b/c i think optimizers will have to coevolve around zeroth-order optimization too (everything today has been built for backprop)」</p>
+</blockquote>
+<blockquote data-anchor-id="s5-note-5">
+<p>他还用过字面短语「maximally bitter-lesson-pilled bet」（2026-07）与「super bitter-lesson-pilled idea」（2026-08）。Dust 论文与 Noise 页都写：算力增大时，基于搜索的更通用算法可能压过依赖可微与反传的归纳偏置。</p>
+</blockquote>
+<aside class="callout callout-note" role="note" id="s5-note-4f5f5b" data-anchor-id="s5-note-4f5f5b"><p class="callout-title">说明</p><p><strong>与记忆相反的一点</strong>：Noise 每条已合并纪录，都在零阶估计之上继续用 Adam、ANVIL II 或 SGD。没有人用「纯搜索、不用一阶优化器」刷出当前纪录。</p>
+</aside>
+</section>
+<section class="card" id="s6" data-section="s6" aria-labelledby="s6-h"><h2 id="s6-h"><span class="badge" aria-hidden="true">6</span><span class="h-num">6. </span><span class="h-t">开放 PR（未合并，勿当纪录）</span></h2>
+<blockquote data-anchor-id="s6-note-1">
+<p>2026-10-19 约 18:37 再查：官方 README 榜仍止于 Boost → Cut。下列为作者自报；<strong>维护者未合并</strong>。<sup class="cite">[<a href="#ref-noise-pr17" id="cite-noise-pr17-13">13</a>]</sup></p>
+</blockquote>
+<div class="table-wrap wide stack" data-anchor-id="s6-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">PR</th>
+<th scope="col">作者</th>
+<th scope="col">自报</th>
+<th scope="col">状态</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="PR"><span class="cv"><strong>#17</strong> CutBI</span></td>
+<td data-label="作者"><span class="cv">Euraba</span></td>
+<td data-label="自报"><span class="cv">Track 1 val <strong>3.728</strong> / <strong>518 s</strong>（约 8.6 min）。同 Boost 阶段；加 attention「externalities」反向归纳。信用与真梯度余弦自称 <strong>0.988</strong>。若属实，会低于 Boost → Cut（3.945），也低于 README 反传 Adam（<strong>3.769</strong>）</span></td>
+<td data-label="状态"><span class="cv"><strong>开放</strong></span></td>
+</tr>
+<tr><td class="k" data-label="PR"><span class="cv">#16</span></td>
+<td data-label="作者"><span class="cv">Lazarus-931</span></td>
+<td data-label="自报"><span class="cv">Track 1 <strong>3.914</strong> / 5 min；Track 2 <strong>4.176</strong> / 83 s</span></td>
+<td data-label="状态"><span class="cv"><strong>开放</strong></span></td>
+</tr>
+<tr><td class="k" data-label="PR"><span class="cv">#15 / #14</span></td>
+<td data-label="作者"><span class="cv">Euraba</span></td>
+<td data-label="自报"><span class="cv">Track 2 压时间（157 s / 261 s 等）</span></td>
+<td data-label="状态"><span class="cv"><strong>开放</strong></span></td>
+</tr>
+<tr><td class="k" data-label="PR"><span class="cv">#10</span></td>
+<td data-label="作者"><span class="cv">yanghu819</span></td>
+<td data-label="自报"><span class="cv">自称 3.9804，但硬件为 8×B300（规则写 8×H100）</span></td>
+<td data-label="状态"><span class="cv"><strong>开放</strong></span></td>
+</tr>
+</tbody>
+</table></div>
+<blockquote data-anchor-id="s6-note-2">
+<p>#17 评论：@kroggen 写「No way! You have beaten backprop + Adam (3.769)」。作者称评测与 README 一致。<strong>在合并前只记为作者主张。</strong></p>
+</blockquote>
+</section>
+<section class="card" id="s7" data-section="s7" aria-labelledby="s7-h"><h2 id="s7-h"><span class="badge" aria-hidden="true">7</span><span class="h-num">7. </span><span class="h-t">学术史（仅背景）</span></h2>
+<blockquote data-anchor-id="s7-note-1">
+<p>这些是 Dust/Noise 之前或并行的零阶 / ES 工作。不是本页核心。</p>
+</blockquote>
+<div class="table-wrap wide" data-anchor-id="s7-table-1" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">工作</th>
+<th scope="col">一句话</th>
+<th scope="col">关联</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="工作"><span class="cv">Salimans et al. 2017 <sup class="cite">[<a href="#ref-es-salimans" id="cite-es-salimans-14">14</a>]</sup></span></td>
+<td data-label="一句话"><span class="cv">权重空间 ES，可扩到大量并行 worker</span></td>
+<td data-label="关联"><span class="cv">Dust 对标的权重空间基线</span></td>
+</tr>
+<tr><td class="k" data-label="工作"><span class="cv">MeZO <sup class="cite">[<a href="#ref-mezo" id="cite-mezo-15">15</a>]</sup></span></td>
+<td data-label="一句话"><span class="cv">两次前向的 ZO-SGD，微调级省显存</span></td>
+<td data-label="关联"><span class="cv">LLM 规模 ZO 先例；非预训练</span></td>
+</tr>
+<tr><td class="k" data-label="工作"><span class="cv">Vegesna &amp; Dahal <sup class="cite">[<a href="#ref-vegesna-dahal" id="cite-vegesna-dahal-16">16</a>]</sup></span></td>
+<td data-label="一句话"><span class="cv">激活空间搜索再回归</span></td>
+<td data-label="关联"><span class="cv">Q Labs 前作</span></td>
+</tr>
+<tr><td class="k" data-label="工作"><span class="cv">ES at Scale <sup class="cite">[<a href="#ref-es-at-scale" id="cite-es-at-scale-17">17</a>]</sup></span></td>
+<td data-label="一句话"><span class="cv">十亿参数级全参 ES 微调</span></td>
+<td data-label="关联"><span class="cv">近期 LLM ES</span></td>
+</tr>
+<tr><td class="k" data-label="工作"><span class="cv">EGGROLL <sup class="cite">[<a href="#ref-eggroll" id="cite-eggroll-3">3</a>]</sup></span></td>
+<td data-label="一句话"><span class="cv">低秩结构化 ES，冲吞吐</span></td>
+<td data-label="关联"><span class="cv">Dust 宣称相对它 10³–10⁴× 更高效</span></td>
+</tr>
+</tbody>
+</table></div>
+</section>
+<section class="card" id="s8" data-section="s8" aria-labelledby="s8-h"><h2 id="s8-h"><span class="badge" aria-hidden="true">8</span><span class="h-num">8. </span><span class="h-t">仍未知 / 待跟</span></h2>
+<ul>
+<li>Dust 论文 venue / arXiv：<strong>未知</strong>。</li>
+<li>ANVIL II（@Alaxarr）主文：<strong>未知</strong>。</li>
+<li>Noise 设定下反传的墙钟：Q Labs <strong>未公布</strong>；boost-cut 草稿另有自比。</li>
+<li>Boost → Cut 在 243M 的终配：草稿写 pending。</li>
+<li>PR #17 等是否合并：需再查。</li>
+<li>「不用 Adam」那段记忆原文：若有截图 / 长文 / 播客线索，可再挖。</li>
+</ul>
+<h3 id="s8-links">主要入口</h3>
+<ul>
+<li><a href="https://qlabs.sh/research/dust/" target="_blank" rel="noopener noreferrer">Dust 论文</a> · <a href="https://github.com/qlabs-eng/dust" target="_blank" rel="noopener noreferrer">Dust 代码</a></li>
+<li><a href="https://qlabs.sh/noise/" target="_blank" rel="noopener noreferrer">Noise</a> · <a href="https://github.com/qlabs-eng/noise" target="_blank" rel="noopener noreferrer">Noise 仓库</a></li>
+<li><a href="https://github.com/spicylemonade/boost-cut" target="_blank" rel="noopener noreferrer">Boost → Cut</a> · <a href="https://x.com/spicey_lemonade/status/2111636408540799141" target="_blank" rel="noopener noreferrer">作者帖</a></li>
+<li><a href="https://www.goodfire.com/research/already-clean" target="_blank" rel="noopener noreferrer">Cammarata 文章</a></li>
+</ul>
+</section>
+<section class="card refs" id="refs" data-section="refs" aria-labelledby="refs-h"><h2 id="refs-h"><span class="h-t">参考文献</span></h2><ol class="references"><li id="ref-dust-paper">Dust: Pretraining Transformers Without Backpropagation, <a href="https://qlabs.sh/research/dust/" target="_blank" rel="noopener noreferrer">qlabs.sh/research/dust</a></li><li id="ref-dust-code">Dust code, <a href="https://github.com/qlabs-eng/dust" target="_blank" rel="noopener noreferrer">qlabs-eng/dust</a></li><li id="ref-eggroll">EGGROLL, <a href="https://arxiv.org/abs/2511.16652" target="_blank" rel="noopener noreferrer">arXiv:2511.16652</a></li><li id="ref-samip-dust4">Samip Dust thread 4/4, <a href="https://x.com/industriaalist/status/2107194546216165610" target="_blank" rel="noopener noreferrer">@industriaalist</a></li><li id="ref-noise-page">Noise speedrun, <a href="https://qlabs.sh/noise/" target="_blank" rel="noopener noreferrer">qlabs.sh/noise</a></li><li id="ref-noise-repo">Noise repo, <a href="https://github.com/qlabs-eng/noise" target="_blank" rel="noopener noreferrer">qlabs-eng/noise</a></li><li id="ref-boost-cut-post">Boost → Cut announcement, <a href="https://x.com/spicey_lemonade/status/2111636408540799141" target="_blank" rel="noopener noreferrer">@spicey_lemonade</a></li><li id="ref-boost-cut-code">Boost → Cut code, <a href="https://github.com/spicylemonade/boost-cut" target="_blank" rel="noopener noreferrer">spicylemonade/boost-cut</a></li><li id="ref-boost-cut-2p3x">Author clarifies 2.3× vs 9.4×, <a href="https://x.com/spicey_lemonade/status/2111886525734764840" target="_blank" rel="noopener noreferrer">@spicey_lemonade</a></li><li id="ref-cammarata-essay">Nick Cammarata, <a href="https://www.goodfire.com/research/already-clean" target="_blank" rel="noopener noreferrer">Neural Networks Are Already Clean</a></li><li id="ref-leo-gao-critique">Leo Gao critique, <a href="https://x.com/nabla_theta/status/2111738788988977454" target="_blank" rel="noopener noreferrer">@nabla_theta</a></li><li id="ref-samip-adam">Samip on Adam coevolution, <a href="https://x.com/industriaalist/status/2107217747533033770" target="_blank" rel="noopener noreferrer">@industriaalist</a></li><li id="ref-noise-pr17">Noise PR #17 CutBI (open), <a href="https://github.com/qlabs-eng/noise/pull/17" target="_blank" rel="noopener noreferrer">qlabs-eng/noise#17</a></li><li id="ref-es-salimans">Salimans et al. 2017, <a href="https://arxiv.org/abs/1703.03864" target="_blank" rel="noopener noreferrer">arXiv:1703.03864</a></li><li id="ref-mezo">MeZO, <a href="https://arxiv.org/abs/2305.17333" target="_blank" rel="noopener noreferrer">arXiv:2305.17333</a></li><li id="ref-vegesna-dahal">Decoupling Search and Learning, <a href="https://arxiv.org/abs/2509.10973" target="_blank" rel="noopener noreferrer">arXiv:2509.10973</a></li><li id="ref-es-at-scale">ES at Scale, <a href="https://arxiv.org/abs/2509.24372" target="_blank" rel="noopener noreferrer">arXiv:2509.24372</a></li></ol></section>
+    </article>
+
+    <nav class="more" aria-label="其他页面">
+      <ul><li><a class="more-card" href="/wrop-improvement-directions"><span class="more-k">另一篇</span><span class="more-t">WROP 后续改进方向</span></a></li><li><a class="more-card" href="/wrop-metrics-zh"><span class="more-k">另一篇</span><span class="more-t">WROP 评测指标：是什么、怎么算、哪里弱</span></a></li><li><a class="more-card" href="/wrop-rerun-cost"><span class="more-k">另一篇</span><span class="more-t">WROP 改 prompt 后重跑：时间和算力估算</span></a></li><li><a class="more-card" href="/wrop-h3-nvidia-speed"><span class="more-k">另一篇</span><span class="more-t">MiniMax H3 在 NVIDIA 上能跑多快：对 WROP 重跑的影响</span></a></li><li><a class="more-card" href="/wrop-wan-speed"><span class="more-k">另一篇</span><span class="more-t">用 Wan 重跑 WROP：能跑多快、要花多少钱</span></a></li><li><a class="more-card" href="/wrop-train-prompts-over"><span class="more-k">另一篇</span><span class="more-t">WROP 训练提示词：OVER 有多少</span></a></li><li><a class="more-card" href="/physiq-vs-wrop"><span class="more-k">另一篇</span><span class="more-t">Physics-IQ vs Object Permanence：名次对照</span></a></li><li><a class="more-card" href="/"><span class="more-k">首页</span><span class="more-t">全部页面</span></a></li></ul>
+    </nav>
+
+    <section class="comments" id="comments" aria-labelledby="comments-h">
+      <h2 id="comments-h">评论 <span class="count" id="list-count">0</span></h2>
+      <p class="hint">选中正文里的文字。点「评论」按钮。评论会贴在那段文字上。</p>
+      <p class="hint">无需登录。任何人都可以回复、编辑、删除、解决任何评论。昵称可不填，会记在本浏览器里。</p>
+      <button type="button" class="btn ghost" id="page-comment">评论整篇</button>
+      <p class="empty" id="list-empty">还没有评论。</p>
+      <ol class="thread-list" id="thread-list"></ol>
+    </section>
+  </main>
+</div>
+
+<footer class="foot">
+  <p>来源：<code>content/dust-noise-zo.md</code>。更新于 2026-10-19。</p>
+  <p>托管于 Cloudflare。评论公开，任何人可改。</p>
+</footer>
+
+<button type="button" class="sel-btn" id="sel-btn" hidden>评论</button>
+
+<div class="scrim" id="scrim" hidden></div>
+<aside class="panel" id="panel" role="dialog" aria-modal="true" aria-labelledby="panel-h" hidden>
+  <div class="panel-head">
+    <h2 id="panel-h">评论</h2>
+    <button type="button" class="icon-btn" id="panel-close" aria-label="关闭">×</button>
+  </div>
+  <div class="panel-body">
+    <blockquote class="panel-quote" id="panel-quote" hidden></blockquote>
+    <ol class="thread" id="panel-thread"></ol>
+    <form class="composer" id="composer" novalidate>
+      <label class="field" id="f-nick-field">
+        <span>昵称（可不填）</span>
+        <input type="text" id="f-nick" maxlength="40" autocomplete="nickname" placeholder="匿名">
+      </label>
+      <label class="field">
+        <span id="f-body-label">评论</span>
+        <textarea id="f-body" maxlength="2000" rows="4" required placeholder="写下你的看法。"></textarea>
+      </label>
+      <div class="form-foot">
+        <span class="counter" id="f-count">0 / 2000</span>
+        <button type="submit" class="btn" id="f-submit">发布</button>
+      </div>
+      <p class="form-msg" id="f-msg" role="status" aria-live="polite"></p>
+    </form>
+  </div>
+</aside>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>
