@@ -21,15 +21,15 @@
   <div class="hero-inner" data-section="intro" id="intro">
     <p class="eyebrow">thoughts.ycjian.com · 研究笔记</p>
     <h1>Dust / Noise：无反向传播预训练与 Boost → Cut</h1>
-    <p class="lead">依据 Q Labs 论文与仓库、Noise 榜与 PR、Boost → Cut 作者帖与草稿论文、相关 X 原话。时间一律标台北时间（UTC+8）。榜单与开放 PR 会变；本文快照到 2026-10-20 约 08:05。</p>
-    <ul class="chips" aria-label="概要"><li>Dust</li><li>Noise</li><li>Boost → Cut</li><li>Relay</li><li>零阶优化</li><li>选中文字即可评论</li></ul>
+    <p class="lead">依据 Q Labs 论文与仓库、Noise 榜与 PR、Boost → Cut 作者帖与草稿论文、相关 X 原话。时间一律标台北时间（UTC+8）。榜单与开放 PR 会变；本文快照到 2026-10-20 约 11:45。</p>
+    <ul class="chips" aria-label="概要"><li>Dust</li><li>Noise</li><li>Own queries</li><li>Relay 关闭</li><li>零阶优化</li><li>选中文字即可评论</li></ul>
   </div>
 </header>
 
 <div class="layout">
   <nav class="toc" aria-label="目录">
     <p class="toc-title">目录</p>
-    <ol><li><a href="#s1"><span class="toc-n">1</span><span class="toc-t">一句话结论</span></a></li><li><a href="#s2"><span class="toc-n">2</span><span class="toc-t">Dust：方法与结果</span></a></li><li><a href="#s3"><span class="toc-n">3</span><span class="toc-t">Noise：无反传预训练竞速</span></a></li><li><a href="#s4"><span class="toc-n">4</span><span class="toc-t">Boost → Cut：当前已合并纪录</span></a></li><li><a href="#s5"><span class="toc-n">5</span><span class="toc-t">Bitter lesson / Adam：记忆原话未找到</span></a></li><li><a href="#s6"><span class="toc-n">6</span><span class="toc-t">开放 PR（未合并，勿当纪录）</span></a></li><li><a href="#s7"><span class="toc-n">7</span><span class="toc-t">学术史（仅背景）</span></a></li><li><a href="#s8"><span class="toc-n">8</span><span class="toc-t">仍未知 / 待跟</span></a></li><li><a href="#refs"><span class="toc-n">※</span><span class="toc-t">参考文献</span></a></li></ol>
+    <ol><li><a href="#s1"><span class="toc-n">1</span><span class="toc-t">一句话结论</span></a></li><li><a href="#s2"><span class="toc-n">2</span><span class="toc-t">Dust：方法与结果</span></a></li><li><a href="#s3"><span class="toc-n">3</span><span class="toc-t">Noise：无反传预训练竞速</span></a></li><li><a href="#s4"><span class="toc-n">4</span><span class="toc-t">Boost → Cut：关键基线（已被 Own queries 追上）</span></a></li><li><a href="#s5"><span class="toc-n">5</span><span class="toc-t">Bitter lesson / Adam：记忆原话未找到</span></a></li><li><a href="#s6"><span class="toc-n">6</span><span class="toc-t">PR 裁定与仍开放项</span></a></li><li><a href="#s7"><span class="toc-n">7</span><span class="toc-t">学术史（仅背景）</span></a></li><li><a href="#s8"><span class="toc-n">8</span><span class="toc-t">仍未知 / 待跟</span></a></li><li><a href="#refs"><span class="toc-n">※</span><span class="toc-t">参考文献</span></a></li></ol>
     <a class="toc-comments" href="#comments">全部评论 <span class="count" id="toc-count">0</span></a>
   </nav>
 
@@ -37,35 +37,35 @@
     <article class="doc">
 <section class="card" id="s1" data-section="s1" aria-labelledby="s1-h"><h2 id="s1-h"><span class="badge" aria-hidden="true">1</span><span class="h-num">1. </span><span class="h-t">一句话结论</span></h2>
 <blockquote data-anchor-id="s1-note-1">
-<p>Dust 用激活扰动估计信用，不用反向传播。Noise 是固定设定下的无反传竞速赛。Boost → Cut 仍是当前<strong>已合并</strong>的 Track 1 纪录（val 约 3.945，约 8 分钟）。它对 Dust 旧纪录约 9.4 倍墙钟加速；其中约 2.3 倍来自稀疏神经元捷径。作者草稿仍报：相对反向传播约 136 倍 FLOPs、约 4.4 倍显存。PR #20（Relay）自称 val <strong>3.704</strong> / <strong>147 s</strong>，并称可对齐同设定反传；<strong>仍开放、未合并</strong>。PR #17（CutBI）作者已关闭，并承认其深度反向归纳接近手写反传。</p>
+<p>Dust 用激活扰动估计信用，不用反向传播。Noise 是固定设定下的无反传竞速赛。2026-10-20 约 10:25，维护者合并一批 PR 后，<strong>Track 1 新纪录</strong>是 Own queries in Cut（val <strong>3.896</strong>，约 10 分钟；PR #19）。<strong>Track 2 新纪录</strong>是 Identity-path credit（val <strong>4.176</strong>，<strong>1 分 23 秒</strong>；PR #16）。Boost → Cut（3.945 / 约 8 分钟）仍是重要基线，但已不是榜首。PR #20 Relay（自称 3.704 / 147 s）于同日约 10:14 被维护者<strong>关闭未合并</strong>：链式块间信用传递依赖端到端可微假设。#17 CutBI、#21/#22 同族也已关闭。</p>
 </blockquote>
 <div class="table-wrap" data-anchor-id="s1-table-1" tabindex="0" role="region" aria-label="表格"><table>
 <thead>
 <tr><th class="k" scope="col">项</th>
-<th scope="col">状态（2026-10-20 约 08:05）</th>
+<th scope="col">状态（2026-10-20 约 11:45）</th>
 </tr>
 </thead>
 <tbody>
 <tr><td class="k" data-label="项"><span class="cv">Dust 论文</span></td>
-<td data-label="状态（2026-10-20 约 08:05）"><span class="cv"><a href="https://qlabs.sh/research/dust/" target="_blank" rel="noopener noreferrer">qlabs.sh/research/dust</a>，无 arXiv 编号</span></td>
+<td data-label="状态（2026-10-20 约 11:45）"><span class="cv"><a href="https://qlabs.sh/research/dust/" target="_blank" rel="noopener noreferrer">qlabs.sh/research/dust</a>，无 arXiv 编号</span></td>
 </tr>
 <tr><td class="k" data-label="项"><span class="cv">Noise 官方榜 Track 1</span></td>
-<td data-label="状态（2026-10-20 约 08:05）"><span class="cv">Boost → Cut，val <strong>3.945</strong>，约 8 分钟（未变）</span></td>
+<td data-label="状态（2026-10-20 约 11:45）"><span class="cv">Own queries in Cut，val <strong>3.896</strong>，约 10 分钟（PR #19 已合并）</span></td>
 </tr>
 <tr><td class="k" data-label="项"><span class="cv">Noise 官方榜 Track 2</span></td>
-<td data-label="状态（2026-10-20 约 08:05）"><span class="cv">Boost，val <strong>4.123</strong>，约 5 分钟（未变）</span></td>
+<td data-label="状态（2026-10-20 约 11:45）"><span class="cv">Identity-path credit，val <strong>4.176</strong>，<strong>1 分 23 秒</strong>（PR #16 已合并）</span></td>
 </tr>
 <tr><td class="k" data-label="项"><span class="cv">反传参考（README）</span></td>
-<td data-label="状态（2026-10-20 约 08:05）"><span class="cv">SGD <strong>5.007</strong>；Adam + lr cooldown <strong>3.769</strong></span></td>
+<td data-label="状态（2026-10-20 约 11:45）"><span class="cv">SGD <strong>5.007</strong>；Adam + lr cooldown <strong>3.769</strong></span></td>
 </tr>
 <tr><td class="k" data-label="项"><span class="cv">PR #20 Relay</span></td>
-<td data-label="状态（2026-10-20 约 08:05）"><span class="cv">自称 Track 1 val <strong>3.7044</strong> / <strong>147 s</strong>；作者帖称对齐反传约 <strong>3.712</strong>；<strong>开放、未合并</strong></span></td>
+<td data-label="状态（2026-10-20 约 11:45）"><span class="cv">自称 val <strong>3.7044</strong> / <strong>147 s</strong>；维护者于约 10:14 <strong>关闭（未合并）</strong></span></td>
 </tr>
 <tr><td class="k" data-label="项"><span class="cv">PR #17 CutBI</span></td>
-<td data-label="状态（2026-10-20 约 08:05）"><span class="cv">自称 val <strong>3.728</strong>；作者于 2026-10-20 00:53 <strong>关闭（未合并）</strong></span></td>
+<td data-label="状态（2026-10-20 约 11:45）"><span class="cv">作者于约 00:53 <strong>关闭（未合并）</strong></span></td>
 </tr>
 <tr><td class="k" data-label="项"><span class="cv">「不用 Adam / 纯零阶搜索」那段记忆原话</span></td>
-<td data-label="状态（2026-10-20 约 08:05）"><span class="cv"><strong>未找到</strong></span></td>
+<td data-label="状态（2026-10-20 约 11:45）"><span class="cv"><strong>未找到</strong></span></td>
 </tr>
 </tbody>
 </table></div>
@@ -124,7 +124,7 @@
 </blockquote>
 <h3 id="s3-board">官方榜快照（已合并纪录）</h3>
 <blockquote data-anchor-id="s3-note-5">
-<p>以下为 README 已合并条目（2026-10-19 晚间仍如此）。数字会变。</p>
+<p>以下为 README 已合并条目（2026-10-20 约 11:45 核对）。数字会变。</p>
 </blockquote>
 <p data-anchor-id="s3-p-d88d0b"><strong>Track 1（val loss ↓）</strong></p>
 <div class="table-wrap wide stack" data-anchor-id="s3-table-2" tabindex="0" role="region" aria-label="表格"><table>
@@ -167,11 +167,17 @@
 <td data-label="时间"><span class="cv">1 h 12 min</span></td>
 <td data-label="贡献者"><span class="cv">@serdardoesml</span></td>
 </tr>
-<tr><td class="k" data-label="#"><span class="cv"><strong>9</strong></span></td>
-<td class="num" data-label="Val"><span class="cv"><strong>3.945</strong></span></td>
-<td data-label="说明"><span class="cv"><strong>Boost → Cut</strong></span></td>
-<td data-label="时间"><span class="cv"><strong>约 8 min</strong></span></td>
-<td data-label="贡献者"><span class="cv"><strong>@spicylemonade</strong></span></td>
+<tr><td class="k" data-label="#"><span class="cv">9</span></td>
+<td class="num" data-label="Val"><span class="cv">3.945</span></td>
+<td data-label="说明"><span class="cv">Boost → Cut</span></td>
+<td data-label="时间"><span class="cv">约 8 min</span></td>
+<td data-label="贡献者"><span class="cv">@spicylemonade</span></td>
+</tr>
+<tr><td class="k" data-label="#"><span class="cv"><strong>10</strong></span></td>
+<td class="num" data-label="Val"><span class="cv"><strong>3.896</strong></span></td>
+<td data-label="说明"><span class="cv"><strong>Own queries in Cut</strong>（PR #19）</span></td>
+<td data-label="时间"><span class="cv"><strong>约 10 min</strong></span></td>
+<td data-label="贡献者"><span class="cv"><strong>@hoo0681, @Lazarus-931</strong></span></td>
 </tr>
 </tbody>
 </table></div>
@@ -198,18 +204,36 @@
 <td data-label="时间"><span class="cv">…</span></td>
 <td data-label="贡献者"><span class="cv">…</span></td>
 </tr>
-<tr><td class="k" data-label="#"><span class="cv"><strong>4</strong></span></td>
-<td class="num" data-label="Val"><span class="cv"><strong>4.123</strong></span></td>
-<td data-label="说明"><span class="cv"><strong>Boost（仅阶段一）</strong></span></td>
-<td data-label="时间"><span class="cv"><strong>约 5 min</strong></span></td>
-<td data-label="贡献者"><span class="cv"><strong>@spicylemonade</strong></span></td>
+<tr><td class="k" data-label="#"><span class="cv">4</span></td>
+<td class="num" data-label="Val"><span class="cv">4.123</span></td>
+<td data-label="说明"><span class="cv">Boost（仅阶段一）</span></td>
+<td data-label="时间"><span class="cv">约 5 min</span></td>
+<td data-label="贡献者"><span class="cv">@spicylemonade</span></td>
+</tr>
+<tr><td class="k" data-label="#"><span class="cv">5</span></td>
+<td class="num" data-label="Val"><span class="cv">4.180</span></td>
+<td data-label="说明"><span class="cv">Boost，更大 probe、max-autotune</span></td>
+<td data-label="时间"><span class="cv">4 min 21 s</span></td>
+<td data-label="贡献者"><span class="cv">@Euraba</span></td>
+</tr>
+<tr><td class="k" data-label="#"><span class="cv">6</span></td>
+<td class="num" data-label="Val"><span class="cv">4.169</span></td>
+<td data-label="说明"><span class="cv">Boost：闭式 hub/value、精确 key</span></td>
+<td data-label="时间"><span class="cv">2 min 37 s</span></td>
+<td data-label="贡献者"><span class="cv">@Euraba</span></td>
+</tr>
+<tr><td class="k" data-label="#"><span class="cv"><strong>7</strong></span></td>
+<td class="num" data-label="Val"><span class="cv"><strong>4.176</strong></span></td>
+<td data-label="说明"><span class="cv"><strong>Identity-path credit</strong>（无 Boost/Cut 阶段；PR #16）</span></td>
+<td data-label="时间"><span class="cv"><strong>1 min 23 s</strong></span></td>
+<td data-label="贡献者"><span class="cv"><strong>@Lazarus-931</strong></span></td>
 </tr>
 </tbody>
 </table></div>
-<aside class="callout callout-warning" role="note" id="s3-warning-0e9028" data-anchor-id="s3-warning-0e9028"><p class="callout-title">开放 PR 不是纪录</p><p>PR #14–#22（含 Relay）等作者自报数字<strong>未写入</strong>上表。维护者未合并前，不当作官方纪录。见 §6。</p>
+<aside class="callout callout-warning" role="note" id="s3-warning-09dbbb" data-anchor-id="s3-warning-09dbbb"><p class="callout-title">关闭的 PR 不是纪录</p><p>Relay 族（#20/#21/#22）与 CutBI（#17）已关闭未合并。作者自报数字<strong>不要</strong>当作官方纪录。见 §6。</p>
 </aside>
 </section>
-<section class="card" id="s4" data-section="s4" aria-labelledby="s4-h"><h2 id="s4-h"><span class="badge" aria-hidden="true">4</span><span class="h-num">4. </span><span class="h-t">Boost → Cut：当前已合并纪录</span></h2>
+<section class="card" id="s4" data-section="s4" aria-labelledby="s4-h"><h2 id="s4-h"><span class="badge" aria-hidden="true">4</span><span class="h-num">4. </span><span class="h-t">Boost → Cut：关键基线（已被 Own queries 追上）</span></h2>
 <blockquote data-anchor-id="s4-note-1">
 <p>作者：@spicey_lemonade（GitHub <code>spicylemonade</code>）。帖：<a href="https://x.com/spicey_lemonade/status/2111636408540799141" target="_blank" rel="noopener noreferrer">2026-10-18 09:52</a>。代码：<a href="https://github.com/spicylemonade/boost-cut" target="_blank" rel="noopener noreferrer">boost-cut</a>。Noise PR <strong>#11</strong>（Track 1）与 <strong>#12</strong>（Track 2）于当日约 15:48 由 <code>serdardoesml</code> 合并；@cs_serdar 写「insane, reproduced and merged!」。<sup class="cite">[<a href="#ref-boost-cut-post" id="cite-boost-cut-post-7">7</a>,<a href="#ref-boost-cut-code" id="cite-boost-cut-code-8">8</a>]</sup></p>
 </blockquote>
@@ -323,62 +347,92 @@
 <aside class="callout callout-note" role="note" id="s5-note-4f5f5b" data-anchor-id="s5-note-4f5f5b"><p class="callout-title">说明</p><p><strong>与记忆相反的一点</strong>：Noise 每条已合并纪录，都在零阶估计之上继续用 Adam、ANVIL II 或 SGD。没有人用「纯搜索、不用一阶优化器」刷出当前纪录。</p>
 </aside>
 </section>
-<section class="card" id="s6" data-section="s6" aria-labelledby="s6-h"><h2 id="s6-h"><span class="badge" aria-hidden="true">6</span><span class="h-num">6. </span><span class="h-t">开放 PR（未合并，勿当纪录）</span></h2>
+<section class="card" id="s6" data-section="s6" aria-labelledby="s6-h"><h2 id="s6-h"><span class="badge" aria-hidden="true">6</span><span class="h-num">6. </span><span class="h-t">PR 裁定与仍开放项</span></h2>
 <blockquote data-anchor-id="s6-note-1">
-<p>2026-10-20 约 08:05 再查：官方 README 榜仍止于 Boost → Cut。下列为作者自报；<strong>维护者未合并前不当作纪录</strong>。<sup class="cite">[<a href="#ref-noise-pr20" id="cite-noise-pr20-13">13</a>,<a href="#ref-relay-x" id="cite-relay-x-14">14</a>]</sup></p>
+<p>2026-10-20 约 10:14–10:25（台北）：维护者 <code>serdardoesml</code> 关闭 Relay 族，并合并 Own queries 与 Track 2 压时间条目。下列以 GitHub 状态为准。<sup class="cite">[<a href="#ref-noise-pr20" id="cite-noise-pr20-13">13</a>,<a href="#ref-relay-x" id="cite-relay-x-14">14</a>]</sup></p>
 </blockquote>
+<h3 id="s6-merged">已合并（写入 README）</h3>
 <div class="table-wrap wide stack" data-anchor-id="s6-table-1" tabindex="0" role="region" aria-label="表格"><table>
 <thead>
 <tr><th class="k" scope="col">PR</th>
 <th scope="col">作者</th>
+<th scope="col">官方 README 结果</th>
+<th scope="col">合并时间（约）</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="PR"><span class="cv"><strong>#19</strong> Own queries in Cut</span></td>
+<td data-label="作者"><span class="cv">hoo0681（+ Lazarus-931 工程）</span></td>
+<td data-label="官方 README 结果"><span class="cv">Track 1 val <strong>3.896</strong> / 约 10 min</span></td>
+<td data-label="合并时间（约）"><span class="cv">10:25</span></td>
+</tr>
+<tr><td class="k" data-label="PR"><span class="cv"><strong>#16</strong> Identity-path credit</span></td>
+<td data-label="作者"><span class="cv">Lazarus-931</span></td>
+<td data-label="官方 README 结果"><span class="cv">Track 2 val <strong>4.176</strong> / <strong>83 s</strong></span></td>
+<td data-label="合并时间（约）"><span class="cv">10:25</span></td>
+</tr>
+<tr><td class="k" data-label="PR"><span class="cv">#15 / #14</span></td>
+<td data-label="作者"><span class="cv">Euraba</span></td>
+<td data-label="官方 README 结果"><span class="cv">Track 2 中间纪录（157 s / 261 s 等）</span></td>
+<td data-label="合并时间（约）"><span class="cv">10:25</span></td>
+</tr>
+</tbody>
+</table></div>
+<blockquote data-anchor-id="s6-note-2">
+<p>Own queries：Cut 阶段让每个 token 的自身 query 也参与信用；作者自称 seed-0 约 <strong>3.893</strong>，README 写 <strong>3.896</strong>。硬件自报为 8×H200（非 H100）；Track 1 无时间上限。</p>
+</blockquote>
+<h3 id="s6-closed">已关闭未合并</h3>
+<div class="table-wrap wide stack" data-anchor-id="s6-table-2" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">PR</th>
+<th scope="col">作者</th>
 <th scope="col">自报</th>
-<th scope="col">状态</th>
+<th scope="col">关闭原因（摘要）</th>
 </tr>
 </thead>
 <tbody>
 <tr><td class="k" data-label="PR"><span class="cv"><strong>#20</strong> Relay</span></td>
 <td data-label="作者"><span class="cv">erodola</span></td>
-<td data-label="自报"><span class="cv">Track 1 val <strong>3.7044</strong> / <strong>147 s</strong>（约 2.5 min）。把 CutBI 的「按深度反向归纳」用到每条路径；无 Boost 阶段。作者帖称同设定反传约 <strong>3.712</strong>，并称全程无 autograd。若属实，会低于 Boost → Cut（3.945）与 README 反传 Adam（<strong>3.769</strong>）</span></td>
-<td data-label="状态"><span class="cv"><strong>开放</strong></span></td>
+<td data-label="自报"><span class="cv">Track 1 <strong>3.7044</strong> / <strong>147 s</strong>；自称对齐同设定反传约 <strong>3.712</strong></span></td>
+<td data-label="关闭原因（摘要）"><span class="cv">维护者：按上层估计向下链式传信用，重新引入端到端可微假设；对含不可微部件的网络不通用。将澄清规则。<strong>不合并</strong>。</span></td>
 </tr>
 <tr><td class="k" data-label="PR"><span class="cv">#21</span></td>
 <td data-label="作者"><span class="cv">erodola</span></td>
-<td data-label="自报"><span class="cv">Track 2 快变体：val <strong>4.1686</strong> / <strong>68.4 s</strong>（到 4.2）</span></td>
-<td data-label="状态"><span class="cv"><strong>开放</strong></span></td>
+<td data-label="自报"><span class="cv">Track 2 <strong>4.1686</strong> / <strong>68.4 s</strong></span></td>
+<td data-label="关闭原因（摘要）"><span class="cv">同族，关闭</span></td>
 </tr>
 <tr><td class="k" data-label="PR"><span class="cv">#22 Fast-Relay</span></td>
 <td data-label="作者"><span class="cv">isaac0804</span></td>
-<td data-label="自报"><span class="cv">Track 2：val <strong>4.0731</strong> / <strong>41.0 s</strong>（350 updates）</span></td>
-<td data-label="状态"><span class="cv"><strong>开放</strong>（2026-10-20 07:53 开）</span></td>
+<td data-label="自报"><span class="cv">Track 2 <strong>4.0731</strong> / <strong>41.0 s</strong></span></td>
+<td data-label="关闭原因（摘要）"><span class="cv">同族，关闭</span></td>
 </tr>
-<tr><td class="k" data-label="PR"><span class="cv">#19</span></td>
-<td data-label="作者"><span class="cv">hoo0681</span></td>
-<td data-label="自报"><span class="cv">Track 1：Cut 加自身 query，自称 <strong>3.893</strong></span></td>
-<td data-label="状态"><span class="cv"><strong>开放</strong></span></td>
-</tr>
-<tr><td class="k" data-label="PR"><span class="cv">#16</span></td>
-<td data-label="作者"><span class="cv">Lazarus-931</span></td>
-<td data-label="自报"><span class="cv">Track 1 <strong>3.914</strong> / 5 min；Track 2 <strong>4.176</strong> / 83 s</span></td>
-<td data-label="状态"><span class="cv"><strong>开放</strong></span></td>
-</tr>
-<tr><td class="k" data-label="PR"><span class="cv">#15 / #14</span></td>
+<tr><td class="k" data-label="PR"><span class="cv">#17 CutBI</span></td>
 <td data-label="作者"><span class="cv">Euraba</span></td>
-<td data-label="自报"><span class="cv">Track 2 压时间（157 s / 261 s 等）</span></td>
-<td data-label="状态"><span class="cv"><strong>开放</strong></span></td>
-</tr>
-<tr><td class="k" data-label="PR"><span class="cv">#10</span></td>
-<td data-label="作者"><span class="cv">yanghu819</span></td>
-<td data-label="自报"><span class="cv">自称 3.9804，但硬件为 8×B300（规则写 8×H100）</span></td>
-<td data-label="状态"><span class="cv"><strong>开放</strong></span></td>
+<td data-label="自报"><span class="cv">Track 1 <strong>3.728</strong></span></td>
+<td data-label="关闭原因（摘要）"><span class="cv">作者自关：深度反向归纳接近手写反传</span></td>
 </tr>
 </tbody>
 </table></div>
-<blockquote data-anchor-id="s6-note-2">
-<p><strong>#17 CutBI 已关闭（未合并）。</strong> Euraba 在 2026-10-20 00:53 关闭，并写：深度反向归纳里的 <code>u</code> 项几乎是伴随量，attention 跳步接近闭式 VJP，「几乎 1 对 1 等于手写反传」；因偏离「远离反传」的精神而关 PR，并指出 #18/#20/#21 继承同一问题。<sup class="cite">[<a href="#ref-noise-pr17" id="cite-noise-pr17-15">15</a>]</sup></p>
-</blockquote>
 <blockquote data-anchor-id="s6-note-3">
-<p>Relay 仍在争规则边界。作者 erodola 在 #20 评论称：Relay 不对非线性做解析转置雅可比，故不是 reverse-mode autodiff。他人在 X 上批评：这是在前向里做低效反传，只是去掉了部分花活。<strong>在合并前只记为作者主张与争议。</strong></p>
+<p>Relay 作者曾争辩：不对非线性做解析转置雅可比，故不是 reverse-mode autodiff。维护者裁定仍不合并。<strong>自报数字不当纪录。</strong><sup class="cite">[<a href="#ref-noise-pr17" id="cite-noise-pr17-15">15</a>]</sup></p>
 </blockquote>
+<h3 id="s6-open">仍开放</h3>
+<div class="table-wrap wide stack" data-anchor-id="s6-table-3" tabindex="0" role="region" aria-label="表格"><table>
+<thead>
+<tr><th class="k" scope="col">PR</th>
+<th scope="col">作者</th>
+<th scope="col">自报</th>
+<th scope="col">备注</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="k" data-label="PR"><span class="cv">#10</span></td>
+<td data-label="作者"><span class="cv">yanghu819</span></td>
+<td data-label="自报"><span class="cv">Track 1 约 <strong>3.9804</strong>（短到长 context curriculum）</span></td>
+<td data-label="备注"><span class="cv">硬件为 <strong>8×B300</strong>；规则写 8×H100。未声称官方 H100 纪录。</span></td>
+</tr>
+</tbody>
+</table></div>
 </section>
 <section class="card" id="s7" data-section="s7" aria-labelledby="s7-h"><h2 id="s7-h"><span class="badge" aria-hidden="true">7</span><span class="h-num">7. </span><span class="h-t">学术史（仅背景）</span></h2>
 <blockquote data-anchor-id="s7-note-1">
@@ -421,7 +475,8 @@
 <li>ANVIL II（@Alaxarr）主文：<strong>未知</strong>。</li>
 <li>Noise 设定下反传的墙钟：Q Labs <strong>未公布</strong>；boost-cut 草稿另有自比。</li>
 <li>Boost → Cut 在 243M 的终配：草稿写 pending。</li>
-<li>PR #20 Relay（及 #21/#22）是否合并、维护者如何裁定「深度反向归纳」：需再查。</li>
+<li>维护者承诺澄清的规则边界（块间信用传递 / 不可微部件）：<strong>待 README 更新</strong>。</li>
+<li>Own queries 在 8×H100 上的正式墙钟：作者自报 H200；README 写约 10 min。</li>
 <li>「不用 Adam」那段记忆原文：若有截图 / 长文 / 播客线索，可再挖。</li>
 </ul>
 <h3 id="s8-links">主要入口</h3>

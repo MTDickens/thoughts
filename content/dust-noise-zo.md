@@ -3,25 +3,25 @@ title: Dust / Noise：无反向传播预训练与 Boost → Cut
 slug: dust-noise-zo
 short: Dust / Noise
 description: Q Labs 的 Dust 与 Noise、Boost → Cut 加速、bitter lesson 相关原话、以及零阶优化的学术背景。只记已核实事实。
-chips: [Dust, Noise, Boost → Cut, Relay, 零阶优化]
+chips: [Dust, Noise, Own queries, Relay 关闭, 零阶优化]
 order: 50
 updated: 2026-10-20
 ---
 
-依据 Q Labs 论文与仓库、Noise 榜与 PR、Boost → Cut 作者帖与草稿论文、相关 X 原话。时间一律标台北时间（UTC+8）。榜单与开放 PR 会变；本文快照到 2026-10-20 约 08:05。
+依据 Q Labs 论文与仓库、Noise 榜与 PR、Boost → Cut 作者帖与草稿论文、相关 X 原话。时间一律标台北时间（UTC+8）。榜单与开放 PR 会变；本文快照到 2026-10-20 约 11:45。
 
 ## 1. 一句话结论 {#s1}
 
-> Dust 用激活扰动估计信用，不用反向传播。Noise 是固定设定下的无反传竞速赛。Boost → Cut 仍是当前**已合并**的 Track 1 纪录（val 约 3.945，约 8 分钟）。它对 Dust 旧纪录约 9.4 倍墙钟加速；其中约 2.3 倍来自稀疏神经元捷径。作者草稿仍报：相对反向传播约 136 倍 FLOPs、约 4.4 倍显存。PR #20（Relay）自称 val **3.704** / **147 s**，并称可对齐同设定反传；**仍开放、未合并**。PR #17（CutBI）作者已关闭，并承认其深度反向归纳接近手写反传。
+> Dust 用激活扰动估计信用，不用反向传播。Noise 是固定设定下的无反传竞速赛。2026-10-20 约 10:25，维护者合并一批 PR 后，**Track 1 新纪录**是 Own queries in Cut（val **3.896**，约 10 分钟；PR #19）。**Track 2 新纪录**是 Identity-path credit（val **4.176**，**1 分 23 秒**；PR #16）。Boost → Cut（3.945 / 约 8 分钟）仍是重要基线，但已不是榜首。PR #20 Relay（自称 3.704 / 147 s）于同日约 10:14 被维护者**关闭未合并**：链式块间信用传递依赖端到端可微假设。#17 CutBI、#21/#22 同族也已关闭。
 
-| 项 | 状态（2026-10-20 约 08:05） |
+| 项 | 状态（2026-10-20 约 11:45） |
 |---|---|
 | Dust 论文 | [qlabs.sh/research/dust](https://qlabs.sh/research/dust/)，无 arXiv 编号 |
-| Noise 官方榜 Track 1 | Boost → Cut，val **3.945**，约 8 分钟（未变） |
-| Noise 官方榜 Track 2 | Boost，val **4.123**，约 5 分钟（未变） |
+| Noise 官方榜 Track 1 | Own queries in Cut，val **3.896**，约 10 分钟（PR #19 已合并） |
+| Noise 官方榜 Track 2 | Identity-path credit，val **4.176**，**1 分 23 秒**（PR #16 已合并） |
 | 反传参考（README） | SGD **5.007**；Adam + lr cooldown **3.769** |
-| PR #20 Relay | 自称 Track 1 val **3.7044** / **147 s**；作者帖称对齐反传约 **3.712**；**开放、未合并** |
-| PR #17 CutBI | 自称 val **3.728**；作者于 2026-10-20 00:53 **关闭（未合并）** |
+| PR #20 Relay | 自称 val **3.7044** / **147 s**；维护者于约 10:14 **关闭（未合并）** |
+| PR #17 CutBI | 作者于约 00:53 **关闭（未合并）** |
 | 「不用 Adam / 纯零阶搜索」那段记忆原话 | **未找到** |
 
 ## 2. Dust：方法与结果 {#s2}
@@ -63,7 +63,7 @@ updated: 2026-10-20
 
 ### 官方榜快照（已合并纪录） {#s3-board}
 
-> 以下为 README 已合并条目（2026-10-19 晚间仍如此）。数字会变。
+> 以下为 README 已合并条目（2026-10-20 约 11:45 核对）。数字会变。
 
 **Track 1（val loss ↓）**
 
@@ -74,7 +74,8 @@ updated: 2026-10-20
 | 3 | 4.167 | Dust + Adam，24k，lr cooldown | 1 h 46 min | – |
 | … | … | 中间若干工程改进 | … | … |
 | 8 | 3.991 | 降到 16k population | 1 h 12 min | @serdardoesml |
-| **9** | **3.945** | **Boost → Cut** | **约 8 min** | **@spicylemonade** |
+| 9 | 3.945 | Boost → Cut | 约 8 min | @spicylemonade |
+| **10** | **3.896** | **Own queries in Cut**（PR #19） | **约 10 min** | **@hoo0681, @Lazarus-931** |
 
 **Track 2（到 4.2 的时间 ↓）**
 
@@ -82,13 +83,16 @@ updated: 2026-10-20
 |---|---:|---|---|---|
 | 1 | 4.167 | Dust + Adam | 1 h 46 min | – |
 | … | … | … | … | … |
-| **4** | **4.123** | **Boost（仅阶段一）** | **约 5 min** | **@spicylemonade** |
+| 4 | 4.123 | Boost（仅阶段一） | 约 5 min | @spicylemonade |
+| 5 | 4.180 | Boost，更大 probe、max-autotune | 4 min 21 s | @Euraba |
+| 6 | 4.169 | Boost：闭式 hub/value、精确 key | 2 min 37 s | @Euraba |
+| **7** | **4.176** | **Identity-path credit**（无 Boost/Cut 阶段；PR #16） | **1 min 23 s** | **@Lazarus-931** |
 
-::: {.warning title="开放 PR 不是纪录"}
-PR #14–#22（含 Relay）等作者自报数字**未写入**上表。维护者未合并前，不当作官方纪录。见 §6。
+::: {.warning title="关闭的 PR 不是纪录"}
+Relay 族（#20/#21/#22）与 CutBI（#17）已关闭未合并。作者自报数字**不要**当作官方纪录。见 §6。
 :::
 
-## 4. Boost → Cut：当前已合并纪录 {#s4}
+## 4. Boost → Cut：关键基线（已被 Own queries 追上） {#s4}
 
 > 作者：@spicey_lemonade（GitHub `spicylemonade`）。帖：[2026-10-18 09:52](https://x.com/spicey_lemonade/status/2111636408540799141)。代码：[boost-cut](https://github.com/spicylemonade/boost-cut)。Noise PR **#11**（Track 1）与 **#12**（Track 2）于当日约 15:48 由 `serdardoesml` 合并；@cs_serdar 写「insane, reproduced and merged!」。[@boost-cut-post; @boost-cut-code]
 
@@ -167,23 +171,36 @@ PR #14–#22（含 Relay）等作者自报数字**未写入**上表。维护者�
 **与记忆相反的一点**：Noise 每条已合并纪录，都在零阶估计之上继续用 Adam、ANVIL II 或 SGD。没有人用「纯搜索、不用一阶优化器」刷出当前纪录。
 :::
 
-## 6. 开放 PR（未合并，勿当纪录） {#s6}
+## 6. PR 裁定与仍开放项 {#s6}
 
-> 2026-10-20 约 08:05 再查：官方 README 榜仍止于 Boost → Cut。下列为作者自报；**维护者未合并前不当作纪录**。[@noise-pr20; @relay-x]
+> 2026-10-20 约 10:14–10:25（台北）：维护者 `serdardoesml` 关闭 Relay 族，并合并 Own queries 与 Track 2 压时间条目。下列以 GitHub 状态为准。[@noise-pr20; @relay-x]
 
-| PR | 作者 | 自报 | 状态 |
+### 已合并（写入 README） {#s6-merged}
+
+| PR | 作者 | 官方 README 结果 | 合并时间（约） |
 |---|---|---|---|
-| **#20** Relay | erodola | Track 1 val **3.7044** / **147 s**（约 2.5 min）。把 CutBI 的「按深度反向归纳」用到每条路径；无 Boost 阶段。作者帖称同设定反传约 **3.712**，并称全程无 autograd。若属实，会低于 Boost → Cut（3.945）与 README 反传 Adam（**3.769**） | **开放** |
-| #21 | erodola | Track 2 快变体：val **4.1686** / **68.4 s**（到 4.2） | **开放** |
-| #22 Fast-Relay | isaac0804 | Track 2：val **4.0731** / **41.0 s**（350 updates） | **开放**（2026-10-20 07:53 开） |
-| #19 | hoo0681 | Track 1：Cut 加自身 query，自称 **3.893** | **开放** |
-| #16 | Lazarus-931 | Track 1 **3.914** / 5 min；Track 2 **4.176** / 83 s | **开放** |
-| #15 / #14 | Euraba | Track 2 压时间（157 s / 261 s 等） | **开放** |
-| #10 | yanghu819 | 自称 3.9804，但硬件为 8×B300（规则写 8×H100） | **开放** |
+| **#19** Own queries in Cut | hoo0681（+ Lazarus-931 工程） | Track 1 val **3.896** / 约 10 min | 10:25 |
+| **#16** Identity-path credit | Lazarus-931 | Track 2 val **4.176** / **83 s** | 10:25 |
+| #15 / #14 | Euraba | Track 2 中间纪录（157 s / 261 s 等） | 10:25 |
 
-> **#17 CutBI 已关闭（未合并）。** Euraba 在 2026-10-20 00:53 关闭，并写：深度反向归纳里的 `u` 项几乎是伴随量，attention 跳步接近闭式 VJP，「几乎 1 对 1 等于手写反传」；因偏离「远离反传」的精神而关 PR，并指出 #18/#20/#21 继承同一问题。[@noise-pr17]
+> Own queries：Cut 阶段让每个 token 的自身 query 也参与信用；作者自称 seed-0 约 **3.893**，README 写 **3.896**。硬件自报为 8×H200（非 H100）；Track 1 无时间上限。
 
-> Relay 仍在争规则边界。作者 erodola 在 #20 评论称：Relay 不对非线性做解析转置雅可比，故不是 reverse-mode autodiff。他人在 X 上批评：这是在前向里做低效反传，只是去掉了部分花活。**在合并前只记为作者主张与争议。**
+### 已关闭未合并 {#s6-closed}
+
+| PR | 作者 | 自报 | 关闭原因（摘要） |
+|---|---|---|---|
+| **#20** Relay | erodola | Track 1 **3.7044** / **147 s**；自称对齐同设定反传约 **3.712** | 维护者：按上层估计向下链式传信用，重新引入端到端可微假设；对含不可微部件的网络不通用。将澄清规则。**不合并**。 |
+| #21 | erodola | Track 2 **4.1686** / **68.4 s** | 同族，关闭 |
+| #22 Fast-Relay | isaac0804 | Track 2 **4.0731** / **41.0 s** | 同族，关闭 |
+| #17 CutBI | Euraba | Track 1 **3.728** | 作者自关：深度反向归纳接近手写反传 |
+
+> Relay 作者曾争辩：不对非线性做解析转置雅可比，故不是 reverse-mode autodiff。维护者裁定仍不合并。**自报数字不当纪录。**[@noise-pr17]
+
+### 仍开放 {#s6-open}
+
+| PR | 作者 | 自报 | 备注 |
+|---|---|---|---|
+| #10 | yanghu819 | Track 1 约 **3.9804**（短到长 context curriculum） | 硬件为 **8×B300**；规则写 8×H100。未声称官方 H100 纪录。 |
 
 ## 7. 学术史（仅背景） {#s7}
 
@@ -203,7 +220,8 @@ PR #14–#22（含 Relay）等作者自报数字**未写入**上表。维护者�
 - ANVIL II（@Alaxarr）主文：**未知**。
 - Noise 设定下反传的墙钟：Q Labs **未公布**；boost-cut 草稿另有自比。
 - Boost → Cut 在 243M 的终配：草稿写 pending。
-- PR #20 Relay（及 #21/#22）是否合并、维护者如何裁定「深度反向归纳」：需再查。
+- 维护者承诺澄清的规则边界（块间信用传递 / 不可微部件）：**待 README 更新**。
+- Own queries 在 8×H100 上的正式墙钟：作者自报 H200；README 写约 10 min。
 - 「不用 Adam」那段记忆原文：若有截图 / 长文 / 播客线索，可再挖。
 
 ### 主要入口 {#s8-links}
