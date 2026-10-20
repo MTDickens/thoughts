@@ -3,18 +3,18 @@ title: Dust / Noise：无反向传播预训练与 Boost → Cut
 slug: dust-noise-zo
 short: Dust / Noise
 description: Q Labs 的 Dust 与 Noise、Boost → Cut 加速、bitter lesson 相关原话、以及零阶优化的学术背景。只记已核实事实。
-chips: [Dust, Noise, Own queries, Relay 关闭, 零阶优化]
+chips: [Dust, Noise, Own queries, "PR 23 开放", 零阶优化]
 order: 50
 updated: 2026-10-20
 ---
 
-依据 Q Labs 论文与仓库、Noise 榜与 PR、Boost → Cut 作者帖与草稿论文、相关 X 原话。时间一律标台北时间（UTC+8）。榜单与开放 PR 会变；本文快照到 2026-10-20 约 11:45。
+依据 Q Labs 论文与仓库、Noise 榜与 PR、Boost → Cut 作者帖与草稿论文、相关 X 原话。时间一律标台北时间（UTC+8）。榜单与开放 PR 会变；本文快照到 2026-10-20 约 15:15。
 
 ## 1. 一句话结论 {#s1}
 
-> Dust 用激活扰动估计信用，不用反向传播。Noise 是固定设定下的无反传竞速赛。2026-10-20 约 10:25，维护者合并一批 PR 后，**Track 1 新纪录**是 Own queries in Cut（val **3.896**，约 10 分钟；PR #19）。**Track 2 新纪录**是 Identity-path credit（val **4.176**，**1 分 23 秒**；PR #16）。Boost → Cut（3.945 / 约 8 分钟）仍是重要基线，但已不是榜首。PR #20 Relay（自称 3.704 / 147 s）于同日约 10:14 被维护者**关闭未合并**：链式块间信用传递依赖端到端可微假设。#17 CutBI、#21/#22 同族也已关闭。
+> Dust 用激活扰动估计信用，不用反向传播。Noise 是固定设定下的无反传竞速赛。2026-10-20 约 10:25，维护者合并一批 PR 后，**Track 1 官方纪录**仍是 Own queries in Cut（val **3.896**，约 10 分钟；PR #19）。**Track 2 官方纪录**是 Identity-path credit（val **4.176**，**1 分 23 秒**；PR #16）。Boost → Cut（3.945 / 约 8 分钟）仍是重要基线，但已不是榜首。PR #20 Relay（自称 3.704 / 147 s）于同日约 10:14 被维护者**关闭未合并**：链式块间信用传递依赖端到端可微假设。#17 CutBI、#21/#22 同族也已关闭。同日约 13:07，**PR #23**（CharlesDDDD）开放：自称 Track 1 val **3.830** / **829 s**（8×H100）；`result.json` 写 val_loss **3.8296**、train_seconds **828.68**。**尚未合并，不是官方纪录。**
 
-| 项 | 状态（2026-10-20 约 11:45） |
+| 项 | 状态（2026-10-20 约 15:15） |
 |---|---|
 | Dust 论文 | [qlabs.sh/research/dust](https://qlabs.sh/research/dust/)，无 arXiv 编号 |
 | Noise 官方榜 Track 1 | Own queries in Cut，val **3.896**，约 10 分钟（PR #19 已合并） |
@@ -22,6 +22,7 @@ updated: 2026-10-20
 | 反传参考（README） | SGD **5.007**；Adam + lr cooldown **3.769** |
 | PR #20 Relay | 自称 val **3.7044** / **147 s**；维护者于约 10:14 **关闭（未合并）** |
 | PR #17 CutBI | 作者于约 00:53 **关闭（未合并）** |
+| **PR #23** value path in Cut | 开放；自称 Track 1 **3.830** / **829 s**（8×H100）；log 与标题一致；**未合并** |
 | 「不用 Adam / 纯零阶搜索」那段记忆原话 | **未找到** |
 
 ## 2. Dust：方法与结果 {#s2}
@@ -63,7 +64,7 @@ updated: 2026-10-20
 
 ### 官方榜快照（已合并纪录） {#s3-board}
 
-> 以下为 README 已合并条目（2026-10-20 约 11:45 核对）。数字会变。
+> 以下为 README 已合并条目（2026-10-20 约 15:15 核对）。数字会变。官方榜相对 11:45 快照**无变**。
 
 **Track 1（val loss ↓）**
 
@@ -200,6 +201,7 @@ Relay 族（#20/#21/#22）与 CutBI（#17）已关闭未合并。作者自报数
 
 | PR | 作者 | 自报 | 备注 |
 |---|---|---|---|
+| **#23** | CharlesDDDD | Track 1 val **3.830** / **829 s**（标题）；log：`val_loss` **3.8296**，`train_seconds` **828.68** | 2026-10-20 约 13:07 开放。Exact values + value path in Cut（经 `W_proj^T`/`A^T`/`W_v^T` 与 RMSNorm 一步非线性；identity path 下传；自称不链式两次非线性）。ANVIL 1.6×、Boost 占 epoch 20%、MLP top-512、own-query keys 256。硬件自报 **8×H100**。无评论、无 review；**mergeable clean**。若合并，将压过 Own queries（3.896）。[@noise-pr23] |
 | #10 | yanghu819 | Track 1 约 **3.9804**（短到长 context curriculum） | 硬件为 **8×B300**；规则写 8×H100。未声称官方 H100 纪录。 |
 
 ## 7. 学术史（仅背景） {#s7}
@@ -222,6 +224,7 @@ Relay 族（#20/#21/#22）与 CutBI（#17）已关闭未合并。作者自报数
 - Boost → Cut 在 243M 的终配：草稿写 pending。
 - 维护者承诺澄清的规则边界（块间信用传递 / 不可微部件）：**待 README 更新**。
 - Own queries 在 8×H100 上的正式墙钟：作者自报 H200；README 写约 10 min。
+- **PR #23** 是否合并、维护者是否认定 value path 合规：**待裁定**。
 - 「不用 Adam」那段记忆原文：若有截图 / 长文 / 播客线索，可再挖。
 
 ### 主要入口 {#s8-links}
@@ -230,4 +233,5 @@ Relay 族（#20/#21/#22）与 CutBI（#17）已关闭未合并。作者自报数
 - [Noise](https://qlabs.sh/noise/) · [Noise 仓库](https://github.com/qlabs-eng/noise)
 - [Boost → Cut](https://github.com/spicylemonade/boost-cut) · [作者帖](https://x.com/spicey_lemonade/status/2111636408540799141)
 - [Relay PR #20](https://github.com/qlabs-eng/noise/pull/20) · [作者帖](https://x.com/EmanueleRodola/status/2112218292634939901)
+- [PR #23 value path](https://github.com/qlabs-eng/noise/pull/23)（开放，自称 Track 1 3.830）
 - [Cammarata 文章](https://www.goodfire.com/research/already-clean)
