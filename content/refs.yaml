@@ -22,4 +22,6 @@ vegesna-dahal: "Decoupling Search and Learning, [arXiv:2509.10973](https://arxiv
 samip-dust4: "Samip Dust thread 4/4, [@industriaalist](https://x.com/industriaalist/status/2107194546216165610)"
 samip-adam: "Samip on Adam coevolution, [@industriaalist](https://x.com/industriaalist/status/2107217747533033770)"
 leo-gao-critique: "Leo Gao critique, [@nabla_theta](https://x.com/nabla_theta/status/2111738788988977454)"
-noise-pr17: "Noise PR #17 CutBI (open), [qlabs-eng/noise#17](https://github.com/qlabs-eng/noise/pull/17)"
+noise-pr17: "Noise PR #17 CutBI (closed by author, unmerged), [qlabs-eng/noise#17](https://github.com/qlabs-eng/noise/pull/17)"
+noise-pr20: "Noise PR #20 Relay (open), [qlabs-eng/noise#20](https://github.com/qlabs-eng/noise/pull/20)"
+relay-x: "Relay announcement, [@EmanueleRodola](https://x.com/EmanueleRodola/status/2112218292634939901)"

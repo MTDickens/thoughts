@@ -3,24 +3,25 @@ title: Dust / Noise：无反向传播预训练与 Boost → Cut
 slug: dust-noise-zo
 short: Dust / Noise
 description: Q Labs 的 Dust 与 Noise、Boost → Cut 加速、bitter lesson 相关原话、以及零阶优化的学术背景。只记已核实事实。
-chips: [Dust, Noise, Boost → Cut, 零阶优化]
+chips: [Dust, Noise, Boost → Cut, Relay, 零阶优化]
 order: 50
-updated: 2026-10-19
+updated: 2026-10-20
 ---
 
-依据 Q Labs 论文与仓库、Noise 榜与 PR、Boost → Cut 作者帖与草稿论文、相关 X 原话。时间一律标台北时间（UTC+8）。榜单与开放 PR 会变；本文快照到 2026-10-19 约 18:37。
+依据 Q Labs 论文与仓库、Noise 榜与 PR、Boost → Cut 作者帖与草稿论文、相关 X 原话。时间一律标台北时间（UTC+8）。榜单与开放 PR 会变；本文快照到 2026-10-20 约 08:05。
 
 ## 1. 一句话结论 {#s1}
 
-> Dust 用激活扰动估计信用，不用反向传播。Noise 是固定设定下的无反传竞速赛。Boost → Cut 是当前已合并的 Track 1 纪录（val 约 3.945，约 8 分钟）。它对 Dust 旧纪录约 9.4 倍墙钟加速；其中约 2.3 倍来自稀疏神经元捷径。作者草稿仍报：相对反向传播约 136 倍 FLOPs、约 4.4 倍显存。PR #17（CutBI）自称 val 3.728，**尚未合并、维护者未核实**。
+> Dust 用激活扰动估计信用，不用反向传播。Noise 是固定设定下的无反传竞速赛。Boost → Cut 仍是当前**已合并**的 Track 1 纪录（val 约 3.945，约 8 分钟）。它对 Dust 旧纪录约 9.4 倍墙钟加速；其中约 2.3 倍来自稀疏神经元捷径。作者草稿仍报：相对反向传播约 136 倍 FLOPs、约 4.4 倍显存。PR #20（Relay）自称 val **3.704** / **147 s**，并称可对齐同设定反传；**仍开放、未合并**。PR #17（CutBI）作者已关闭，并承认其深度反向归纳接近手写反传。
 
-| 项 | 状态（2026-10-19） |
+| 项 | 状态（2026-10-20 约 08:05） |
 |---|---|
 | Dust 论文 | [qlabs.sh/research/dust](https://qlabs.sh/research/dust/)，无 arXiv 编号 |
-| Noise 官方榜 Track 1 | Boost → Cut，val **3.945**，约 8 分钟 |
-| Noise 官方榜 Track 2 | Boost，val **4.123**，约 5 分钟 |
+| Noise 官方榜 Track 1 | Boost → Cut，val **3.945**，约 8 分钟（未变） |
+| Noise 官方榜 Track 2 | Boost，val **4.123**，约 5 分钟（未变） |
 | 反传参考（README） | SGD **5.007**；Adam + lr cooldown **3.769** |
-| PR #17 CutBI | 自称 val **3.728** / 518 s；**开放、未合并** |
+| PR #20 Relay | 自称 Track 1 val **3.7044** / **147 s**；作者帖称对齐反传约 **3.712**；**开放、未合并** |
+| PR #17 CutBI | 自称 val **3.728**；作者于 2026-10-20 00:53 **关闭（未合并）** |
 | 「不用 Adam / 纯零阶搜索」那段记忆原话 | **未找到** |
 
 ## 2. Dust：方法与结果 {#s2}
@@ -84,7 +85,7 @@ updated: 2026-10-19
 | **4** | **4.123** | **Boost（仅阶段一）** | **约 5 min** | **@spicylemonade** |
 
 ::: {.warning title="开放 PR 不是纪录"}
-PR #14–#17 等作者自报数字**未写入**上表。维护者未合并前，不当作官方纪录。见 §6。
+PR #14–#22（含 Relay）等作者自报数字**未写入**上表。维护者未合并前，不当作官方纪录。见 §6。
 :::
 
 ## 4. Boost → Cut：当前已合并纪录 {#s4}
@@ -168,16 +169,21 @@ PR #14–#17 等作者自报数字**未写入**上表。维护者未合并前，
 
 ## 6. 开放 PR（未合并，勿当纪录） {#s6}
 
-> 2026-10-19 约 18:37 再查：官方 README 榜仍止于 Boost → Cut。下列为作者自报；**维护者未合并**。[@noise-pr17]
+> 2026-10-20 约 08:05 再查：官方 README 榜仍止于 Boost → Cut。下列为作者自报；**维护者未合并前不当作纪录**。[@noise-pr20; @relay-x]
 
 | PR | 作者 | 自报 | 状态 |
 |---|---|---|---|
-| **#17** CutBI | Euraba | Track 1 val **3.728** / **518 s**（约 8.6 min）。同 Boost 阶段；加 attention「externalities」反向归纳。信用与真梯度余弦自称 **0.988**。若属实，会低于 Boost → Cut（3.945），也低于 README 反传 Adam（**3.769**） | **开放** |
+| **#20** Relay | erodola | Track 1 val **3.7044** / **147 s**（约 2.5 min）。把 CutBI 的「按深度反向归纳」用到每条路径；无 Boost 阶段。作者帖称同设定反传约 **3.712**，并称全程无 autograd。若属实，会低于 Boost → Cut（3.945）与 README 反传 Adam（**3.769**） | **开放** |
+| #21 | erodola | Track 2 快变体：val **4.1686** / **68.4 s**（到 4.2） | **开放** |
+| #22 Fast-Relay | isaac0804 | Track 2：val **4.0731** / **41.0 s**（350 updates） | **开放**（2026-10-20 07:53 开） |
+| #19 | hoo0681 | Track 1：Cut 加自身 query，自称 **3.893** | **开放** |
 | #16 | Lazarus-931 | Track 1 **3.914** / 5 min；Track 2 **4.176** / 83 s | **开放** |
 | #15 / #14 | Euraba | Track 2 压时间（157 s / 261 s 等） | **开放** |
 | #10 | yanghu819 | 自称 3.9804，但硬件为 8×B300（规则写 8×H100） | **开放** |
 
-> #17 评论：@kroggen 写「No way! You have beaten backprop + Adam (3.769)」。作者称评测与 README 一致。**在合并前只记为作者主张。**
+> **#17 CutBI 已关闭（未合并）。** Euraba 在 2026-10-20 00:53 关闭，并写：深度反向归纳里的 `u` 项几乎是伴随量，attention 跳步接近闭式 VJP，「几乎 1 对 1 等于手写反传」；因偏离「远离反传」的精神而关 PR，并指出 #18/#20/#21 继承同一问题。[@noise-pr17]
+
+> Relay 仍在争规则边界。作者 erodola 在 #20 评论称：Relay 不对非线性做解析转置雅可比，故不是 reverse-mode autodiff。他人在 X 上批评：这是在前向里做低效反传，只是去掉了部分花活。**在合并前只记为作者主张与争议。**
 
 ## 7. 学术史（仅背景） {#s7}
 
@@ -197,7 +203,7 @@ PR #14–#17 等作者自报数字**未写入**上表。维护者未合并前，
 - ANVIL II（@Alaxarr）主文：**未知**。
 - Noise 设定下反传的墙钟：Q Labs **未公布**；boost-cut 草稿另有自比。
 - Boost → Cut 在 243M 的终配：草稿写 pending。
-- PR #17 等是否合并：需再查。
+- PR #20 Relay（及 #21/#22）是否合并、维护者如何裁定「深度反向归纳」：需再查。
 - 「不用 Adam」那段记忆原文：若有截图 / 长文 / 播客线索，可再挖。
 
 ### 主要入口 {#s8-links}
@@ -205,4 +211,5 @@ PR #14–#17 等作者自报数字**未写入**上表。维护者未合并前，
 - [Dust 论文](https://qlabs.sh/research/dust/) · [Dust 代码](https://github.com/qlabs-eng/dust)
 - [Noise](https://qlabs.sh/noise/) · [Noise 仓库](https://github.com/qlabs-eng/noise)
 - [Boost → Cut](https://github.com/spicylemonade/boost-cut) · [作者帖](https://x.com/spicey_lemonade/status/2111636408540799141)
+- [Relay PR #20](https://github.com/qlabs-eng/noise/pull/20) · [作者帖](https://x.com/EmanueleRodola/status/2112218292634939901)
 - [Cammarata 文章](https://www.goodfire.com/research/already-clean)
