@@ -3,26 +3,26 @@ title: Dust / Noise：无反向传播预训练与 Boost → Cut
 slug: dust-noise-zo
 short: Dust / Noise
 description: Q Labs 的 Dust 与 Noise、Boost → Cut 加速、bitter lesson 相关原话、以及零阶优化的学术背景。只记已核实事实。
-chips: [Dust, Noise, Own queries, "PR 23 开放", 零阶优化]
+chips: [Dust, Noise, "Track 1 3.722", "Track 2 2.5 s", 零阶优化]
 order: 50
-updated: 2026-10-20
+updated: 2026-10-22
 ---
 
-依据 Q Labs 论文与仓库、Noise 榜与 PR、Boost → Cut 作者帖与草稿论文、相关 X 原话。时间一律标台北时间（UTC+8）。榜单与开放 PR 会变；本文快照到 2026-10-20 约 15:15。
+依据 Q Labs 论文与仓库、Noise 榜与 PR、Boost → Cut 作者帖与草稿论文、相关 X 原话。时间一律标台北时间（UTC+8）。榜单与开放 PR 会变；本文快照到 2026-10-22 约 11:25。
 
 ## 1. 一句话结论 {#s1}
 
-> Dust 用激活扰动估计信用，不用反向传播。Noise 是固定设定下的无反传竞速赛。2026-10-20 约 10:25，维护者合并一批 PR 后，**Track 1 官方纪录**仍是 Own queries in Cut（val **3.896**，约 10 分钟；PR #19）。**Track 2 官方纪录**是 Identity-path credit（val **4.176**，**1 分 23 秒**；PR #16）。Boost → Cut（3.945 / 约 8 分钟）仍是重要基线，但已不是榜首。PR #20 Relay（自称 3.704 / 147 s）于同日约 10:14 被维护者**关闭未合并**：链式块间信用传递依赖端到端可微假设。#17 CutBI、#21/#22 同族也已关闭。同日约 13:07，**PR #23**（CharlesDDDD）开放：自称 Track 1 val **3.830** / **829 s**（8×H100）；`result.json` 写 val_loss **3.8296**、train_seconds **828.68**。**尚未合并，不是官方纪录。**
+> Dust 用激活扰动估计信用，不用反向传播。Noise 是固定设定下的无反传竞速赛。相对 2026-10-20 约 15:15 快照，官方榜已大变。**Track 1 官方纪录**现为 Future-token probes（val **3.722**，约 **1 h 22 min**；README #12，@NotDesigned）。它压过已合并的 PR #23 value path（README #11，val **3.777** / 约 18 min），并**低于** README 反传 Adam 参考 **3.769**。**Track 2 官方纪录**现为 Faster credit kernels + bf16 权重梯度（val **4.184**，**2.5 s**；README #20）。Identity-path（#16，1 分 23 秒）仍是关键节点，但已不是榜首。仍开放：PR **#40**（CharlesDDDD，自称 Track 1 **3.676** / **35 min**）、PR **#35**（hoo0681，自称 **3.736** / 12 h，**8×H200**）、PR **#10**（B300 curriculum）。Relay / CutBI 族仍关闭未合并。
 
-| 项 | 状态（2026-10-20 约 15:15） |
+| 项 | 状态（2026-10-22 约 11:25） |
 |---|---|
 | Dust 论文 | [qlabs.sh/research/dust](https://qlabs.sh/research/dust/)，无 arXiv 编号 |
-| Noise 官方榜 Track 1 | Own queries in Cut，val **3.896**，约 10 分钟（PR #19 已合并） |
-| Noise 官方榜 Track 2 | Identity-path credit，val **4.176**，**1 分 23 秒**（PR #16 已合并） |
+| Noise 官方榜 Track 1 | Future-token probes，val **3.722**，约 1 h 22 min（README #12） |
+| Noise 官方榜 Track 2 | Faster credit kernels，val **4.184**，**2.5 s**（README #20） |
 | 反传参考（README） | SGD **5.007**；Adam + lr cooldown **3.769** |
-| PR #20 Relay | 自称 val **3.7044** / **147 s**；维护者于约 10:14 **关闭（未合并）** |
-| PR #17 CutBI | 作者于约 00:53 **关闭（未合并）** |
-| **PR #23** value path in Cut | 开放；自称 Track 1 **3.830** / **829 s**（8×H100）；log 与标题一致；**未合并** |
+| PR #23 value path | **已合并**为 Track 1 #11：val **3.777** / 约 18 min（标题从 3.830/829 s 改到 3.777/1071 s）[@noise-pr23] |
+| PR #20 Relay | 自称 val **3.7044** / **147 s**；**关闭（未合并）** |
+| 仍开放 | **#40** 自称 3.676 / 35 min；**#35** 自称 3.736（8×H200）；**#10** B300 curriculum |
 | 「不用 Adam / 纯零阶搜索」那段记忆原话 | **未找到** |
 
 ## 2. Dust：方法与结果 {#s2}
@@ -64,19 +64,20 @@ updated: 2026-10-20
 
 ### 官方榜快照（已合并纪录） {#s3-board}
 
-> 以下为 README 已合并条目（2026-10-20 约 15:15 核对）。数字会变。官方榜相对 11:45 快照**无变**。
+> 以下为 README 已合并条目（2026-10-22 约 11:25 核对）。数字会变。[@noise-repo]
 
 **Track 1（val loss ↓）**
 
 | # | Val | 说明 | 时间 | 贡献者 |
 |---|---:|---|---|---|
 | 1 | 5.954 | EGGROLL + Adam，128k antithetic | 5 h 20 min | – |
-| 2 | 5.058 | Dust + SGD，16k population | 1 h 19 min | – |
-| 3 | 4.167 | Dust + Adam，24k，lr cooldown | 1 h 46 min | – |
 | … | … | 中间若干工程改进 | … | … |
-| 8 | 3.991 | 降到 16k population | 1 h 12 min | @serdardoesml |
 | 9 | 3.945 | Boost → Cut | 约 8 min | @spicylemonade |
-| **10** | **3.896** | **Own queries in Cut**（PR #19） | **约 10 min** | **@hoo0681, @Lazarus-931** |
+| 10 | 3.896 | Own queries in Cut（PR #19） | 约 10 min | @hoo0681, @Lazarus-931 |
+| 11 | 3.777 | Exact values + value path in Cut（PR #23） | 约 18 min | @CharlesDDDD |
+| **12** | **3.722** | **Future-token probes，input-path key/gate credit** | **约 1 h 22 min** | **@NotDesigned** |
+
+> README 反传 Adam 参考是 **3.769**。官方 Track 1 纪录 **3.722** 已低于该参考。
 
 **Track 2（到 4.2 的时间 ↓）**
 
@@ -84,16 +85,16 @@ updated: 2026-10-20
 |---|---:|---|---|---|
 | 1 | 4.167 | Dust + Adam | 1 h 46 min | – |
 | … | … | … | … | … |
-| 4 | 4.123 | Boost（仅阶段一） | 约 5 min | @spicylemonade |
-| 5 | 4.180 | Boost，更大 probe、max-autotune | 4 min 21 s | @Euraba |
-| 6 | 4.169 | Boost：闭式 hub/value、精确 key | 2 min 37 s | @Euraba |
-| **7** | **4.176** | **Identity-path credit**（无 Boost/Cut 阶段；PR #16） | **1 min 23 s** | **@Lazarus-931** |
+| 7 | 4.176 | Identity-path credit（PR #16） | 1 min 23 s | @Lazarus-931 |
+| … | … | 随后多轮 JAX / 结构化起点 / moment kernels | … | … |
+| 19 | 4.184 | 400 updates，重调 rates | 2.7 s | @erodola |
+| **20** | **4.184** | **Faster credit kernels，bf16 权重梯度** | **2.5 s** | **@Euraba** |
 
 ::: {.warning title="关闭的 PR 不是纪录"}
-Relay 族（#20/#21/#22）与 CutBI（#17）已关闭未合并。作者自报数字**不要**当作官方纪录。见 §6。
+Relay 族（#20/#21/#22）与 CutBI（#17）已关闭未合并。作者自报数字**不要**当作官方纪录。见 §6。开放中的 #40/#35/#10 也还不是纪录。
 :::
 
-## 4. Boost → Cut：关键基线（已被 Own queries 追上） {#s4}
+## 4. Boost → Cut：关键基线（已被后续纪录压过） {#s4}
 
 > 作者：@spicey_lemonade（GitHub `spicylemonade`）。帖：[2026-10-18 09:52](https://x.com/spicey_lemonade/status/2111636408540799141)。代码：[boost-cut](https://github.com/spicylemonade/boost-cut)。Noise PR **#11**（Track 1）与 **#12**（Track 2）于当日约 15:48 由 `serdardoesml` 合并；@cs_serdar 写「insane, reproduced and merged!」。[@boost-cut-post; @boost-cut-code]
 
@@ -174,26 +175,27 @@ Relay 族（#20/#21/#22）与 CutBI（#17）已关闭未合并。作者自报数
 
 ## 6. PR 裁定与仍开放项 {#s6}
 
-> 2026-10-20 约 10:14–10:25（台北）：维护者 `serdardoesml` 关闭 Relay 族，并合并 Own queries 与 Track 2 压时间条目。下列以 GitHub 状态为准。[@noise-pr20; @relay-x]
+> 2026-10-20 约 10:14–10:25（台北）：维护者关闭 Relay 族，并合并 Own queries 与早期 Track 2 压时间条目。此后到 2026-10-22：PR #23 合并为 Track 1 #11；Future-token probes 写入 #12；Track 2 连刷到 **2.5 s**。下列以 GitHub / README 为准。[@noise-pr20; @noise-pr23; @noise-repo]
 
 ### 已合并（写入 README） {#s6-merged}
 
-| PR | 作者 | 官方 README 结果 | 合并时间（约） |
+| PR / README | 作者 | 官方 README 结果 | 备注 |
 |---|---|---|---|
-| **#19** Own queries in Cut | hoo0681（+ Lazarus-931 工程） | Track 1 val **3.896** / 约 10 min | 10:25 |
-| **#16** Identity-path credit | Lazarus-931 | Track 2 val **4.176** / **83 s** | 10:25 |
-| #15 / #14 | Euraba | Track 2 中间纪录（157 s / 261 s 等） | 10:25 |
-
-> Own queries：Cut 阶段让每个 token 的自身 query 也参与信用；作者自称 seed-0 约 **3.893**，README 写 **3.896**。硬件自报为 8×H200（非 H100）；Track 1 无时间上限。
+| **#19** Own queries | hoo0681（+ Lazarus-931） | Track 1 #10：val **3.896** / 约 10 min | 2026-10-20 约 10:25 合并 |
+| **#16** Identity-path | Lazarus-931 | Track 2 #7：val **4.176** / **83 s** | 同日合并；后续 Track 2 已远快于此 |
+| **#23** value path | CharlesDDDD | Track 1 #11：val **3.777** / 约 **18 min** | 2026-10-20 约 19:06 合并；标题从 3.830/829 s 改为 3.777/1071 s |
+| Future-token probes | NotDesigned | Track 1 **#12**：val **3.722** / 约 **1 h 22 min** | 当前 Track 1 官方纪录；低于反传 Adam **3.769** |
+| Faster credit kernels | Euraba | Track 2 **#20**：val **4.184** / **2.5 s** | 当前 Track 2 官方纪录 |
 
 ### 已关闭未合并 {#s6-closed}
 
 | PR | 作者 | 自报 | 关闭原因（摘要） |
 |---|---|---|---|
-| **#20** Relay | erodola | Track 1 **3.7044** / **147 s**；自称对齐同设定反传约 **3.712** | 维护者：按上层估计向下链式传信用，重新引入端到端可微假设；对含不可微部件的网络不通用。将澄清规则。**不合并**。 |
+| **#20** Relay | erodola | Track 1 **3.7044** / **147 s**；自称对齐同设定反传约 **3.712** | 维护者：按上层估计向下链式传信用，重新引入端到端可微假设；对含不可微部件的网络不通用。**不合并**。 |
 | #21 | erodola | Track 2 **4.1686** / **68.4 s** | 同族，关闭 |
 | #22 Fast-Relay | isaac0804 | Track 2 **4.0731** / **41.0 s** | 同族，关闭 |
 | #17 CutBI | Euraba | Track 1 **3.728** | 作者自关：深度反向归纳接近手写反传 |
+| #31 | NotDesigned | Track 1 **3.719**（2× RTX 5090） | 关闭；官方 #12 写 3.722 / 1 h 22 min（8×H100 设定） |
 
 > Relay 作者曾争辩：不对非线性做解析转置雅可比，故不是 reverse-mode autodiff。维护者裁定仍不合并。**自报数字不当纪录。**[@noise-pr17]
 
@@ -201,8 +203,9 @@ Relay 族（#20/#21/#22）与 CutBI（#17）已关闭未合并。作者自报数
 
 | PR | 作者 | 自报 | 备注 |
 |---|---|---|---|
-| **#23** | CharlesDDDD | Track 1 val **3.830** / **829 s**（标题）；log：`val_loss` **3.8296**，`train_seconds` **828.68** | 2026-10-20 约 13:07 开放。Exact values + value path in Cut（经 `W_proj^T`/`A^T`/`W_v^T` 与 RMSNorm 一步非线性；identity path 下传；自称不链式两次非线性）。ANVIL 1.6×、Boost 占 epoch 20%、MLP top-512、own-query keys 256。硬件自报 **8×H100**。无评论、无 review；**mergeable clean**。若合并，将压过 Own queries（3.896）。[@noise-pr23] |
-| #10 | yanghu819 | Track 1 约 **3.9804**（短到长 context curriculum） | 硬件为 **8×B300**；规则写 8×H100。未声称官方 H100 纪录。 |
+| **#40** | CharlesDDDD | Track 1 val **3.676** / **35 min**（8×H100） | 2026-10-22 约 10:47 开放。在 #12 测量上加 GPU 分片与 end merge（仅前向）。若合并，将压过 3.722。[@noise-pr40] |
+| **#35** | hoo0681 | Track 1 val **3.736** / 约 12 h（**8×H200**） | 自称相对 #23 初版增益；硬件不是规则里的 8×H100；且 3.736 **高于** 当前官方 3.722。[@noise-pr35] |
+| #10 | yanghu819 | Track 1 约 **3.9804**（短到长 context curriculum） | 硬件为 **8×B300**；未声称官方 H100 纪录。 |
 
 ## 7. 学术史（仅背景） {#s7}
 
@@ -224,7 +227,8 @@ Relay 族（#20/#21/#22）与 CutBI（#17）已关闭未合并。作者自报数
 - Boost → Cut 在 243M 的终配：草稿写 pending。
 - 维护者承诺澄清的规则边界（块间信用传递 / 不可微部件）：**待 README 更新**。
 - Own queries 在 8×H100 上的正式墙钟：作者自报 H200；README 写约 10 min。
-- **PR #23** 是否合并、维护者是否认定 value path 合规：**待裁定**。
+- **PR #40** 是否合并（自称 3.676 / 35 min）：**待裁定**。
+- **PR #35** 在 8×H100 上能否复现、是否合规：**待裁定**。
 - 「不用 Adam」那段记忆原文：若有截图 / 长文 / 播客线索，可再挖。
 
 ### 主要入口 {#s8-links}
@@ -233,5 +237,6 @@ Relay 族（#20/#21/#22）与 CutBI（#17）已关闭未合并。作者自报数
 - [Noise](https://qlabs.sh/noise/) · [Noise 仓库](https://github.com/qlabs-eng/noise)
 - [Boost → Cut](https://github.com/spicylemonade/boost-cut) · [作者帖](https://x.com/spicey_lemonade/status/2111636408540799141)
 - [Relay PR #20](https://github.com/qlabs-eng/noise/pull/20) · [作者帖](https://x.com/EmanueleRodola/status/2112218292634939901)
-- [PR #23 value path](https://github.com/qlabs-eng/noise/pull/23)（开放，自称 Track 1 3.830）
+- [PR #23 value path](https://github.com/qlabs-eng/noise/pull/23)（已合并为 Track 1 #11，3.777）
+- [PR #40 Noise with merge](https://github.com/qlabs-eng/noise/pull/40)（开放，自称 3.676）
 - [Cammarata 文章](https://www.goodfire.com/research/already-clean)

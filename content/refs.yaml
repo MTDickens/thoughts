@@ -23,7 +23,9 @@ samip-dust4: "Samip Dust thread 4/4, [@industriaalist](https://x.com/industriaal
 samip-adam: "Samip on Adam coevolution, [@industriaalist](https://x.com/industriaalist/status/2107217747533033770)"
 leo-gao-critique: "Leo Gao critique, [@nabla_theta](https://x.com/nabla_theta/status/2111738788988977454)"
 noise-pr17: "Noise PR #17 CutBI (closed by author, unmerged), [qlabs-eng/noise#17](https://github.com/qlabs-eng/noise/pull/17)"
-noise-pr20: "Noise PR #20 Relay (open), [qlabs-eng/noise#20](https://github.com/qlabs-eng/noise/pull/20)"
+noise-pr20: "Noise PR #20 Relay (closed, unmerged), [qlabs-eng/noise#20](https://github.com/qlabs-eng/noise/pull/20)"
 relay-x: "Relay announcement, [@EmanueleRodola](https://x.com/EmanueleRodola/status/2112218292634939901)"
 
-noise-pr23: "Noise PR #23 value path in Cut (open claim Track 1 3.830), [qlabs-eng/noise#23](https://github.com/qlabs-eng/noise/pull/23)"
+noise-pr23: "Noise PR #23 value path in Cut (merged as Track 1 #11, val 3.777), [qlabs-eng/noise#23](https://github.com/qlabs-eng/noise/pull/23)"
+noise-pr40: "Noise PR #40 Noise with merge (open claim Track 1 3.676), [qlabs-eng/noise#40](https://github.com/qlabs-eng/noise/pull/40)"
+noise-pr35: "Noise PR #35 first hop + VQ remainder (open claim 3.736 on 8xH200), [qlabs-eng/noise#35](https://github.com/qlabs-eng/noise/pull/35)"
