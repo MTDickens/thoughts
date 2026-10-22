@@ -29,3 +29,4 @@ relay-x: "Relay announcement, [@EmanueleRodola](https://x.com/EmanueleRodola/sta
 noise-pr23: "Noise PR #23 value path in Cut (merged as Track 1 #11, val 3.777), [qlabs-eng/noise#23](https://github.com/qlabs-eng/noise/pull/23)"
 noise-pr40: "Noise PR #40 Noise with merge (open claim Track 1 3.676), [qlabs-eng/noise#40](https://github.com/qlabs-eng/noise/pull/40)"
 noise-pr35: "Noise PR #35 first hop + VQ remainder (open claim 3.736 on 8xH200), [qlabs-eng/noise#35](https://github.com/qlabs-eng/noise/pull/35)"
+noise-pr41: "Noise PR #41 faster update (open claim Track 2 4.185 / 1.66 s), [qlabs-eng/noise#41](https://github.com/qlabs-eng/noise/pull/41)"
