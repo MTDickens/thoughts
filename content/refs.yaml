@@ -27,6 +27,8 @@ noise-pr20: "Noise PR #20 Relay (closed, unmerged), [qlabs-eng/noise#20](https:/
 relay-x: "Relay announcement, [@EmanueleRodola](https://x.com/EmanueleRodola/status/2112218292634939901)"
 
 noise-pr23: "Noise PR #23 value path in Cut (merged as Track 1 #11, val 3.777), [qlabs-eng/noise#23](https://github.com/qlabs-eng/noise/pull/23)"
-noise-pr40: "Noise PR #40 Noise with merge (open claim Track 1 3.676), [qlabs-eng/noise#40](https://github.com/qlabs-eng/noise/pull/40)"
-noise-pr35: "Noise PR #35 first hop + VQ remainder (open claim 3.736 on 8xH200), [qlabs-eng/noise#35](https://github.com/qlabs-eng/noise/pull/35)"
-noise-pr41: "Noise PR #41 faster update (open claim Track 2 4.185 / 1.66 s), [qlabs-eng/noise#41](https://github.com/qlabs-eng/noise/pull/41)"
+noise-pr40: "Noise PR #40 Noise with merge (merged as 10M Track 1 #14, val 3.676), [qlabs-eng/noise#40](https://github.com/qlabs-eng/noise/pull/40)"
+noise-pr35: "Noise PR #35 first hop + VQ remainder (merged as 10M Track 1 #13, val 3.707), [qlabs-eng/noise#35](https://github.com/qlabs-eng/noise/pull/35)"
+noise-pr41: "Noise PR #41 faster update (merged as 10M Track 2 #21, val 4.185 / 1.7 s), [qlabs-eng/noise#41](https://github.com/qlabs-eng/noise/pull/41)"
+noise-pr42: "Noise PR #42 16 rows / 250 updates (merged as 10M Track 2 #22, val 4.186 / 1.6 s), [qlabs-eng/noise#42](https://github.com/qlabs-eng/noise/pull/42)"
+noise-archive-10m: "Noise 10M archive README, [qlabs-eng/noise archive/10M](https://github.com/qlabs-eng/noise/blob/main/archive/10M/README.md)"
