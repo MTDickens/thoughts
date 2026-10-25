@@ -21,8 +21,8 @@
   <div class="hero-inner" data-section="intro" id="intro">
     <p class="eyebrow">thoughts.ycjian.com · 研究笔记</p>
     <h1>Dust / Noise：无反向传播预训练与 Boost → Cut</h1>
-    <p class="lead">依据 Q Labs 论文与仓库、Noise 榜与 PR、Boost → Cut 作者帖与草稿论文、相关 X 原话。时间一律标台北时间（UTC+8）。榜单与开放 PR 会变；本文快照到 2026-10-25 约 08:23。</p>
-    <ul class="chips" aria-label="概要"><li>Dust</li><li>Noise</li><li>30M 重置</li><li>Track2 8.3 min</li><li>Track3 #45 开放</li><li>零阶优化</li><li>选中文字即可评论</li></ul>
+    <p class="lead">依据 Q Labs 论文与仓库、Noise 榜与 PR、Boost → Cut 作者帖与草稿论文、相关 X 原话。时间一律标台北时间（UTC+8）。榜单与开放 PR 会变；本文快照到 2026-10-25 约 12:10。</p>
+    <ul class="chips" aria-label="概要"><li>Dust</li><li>Noise</li><li>30M 重置</li><li>Track1 #46 开放</li><li>Track2 8.3 min</li><li>零阶优化</li><li>选中文字即可评论</li></ul>
   </div>
 </header>
 
@@ -37,70 +37,70 @@
     <article class="doc">
 <section class="card" id="s1" data-section="s1" aria-labelledby="s1-h"><h2 id="s1-h"><span class="badge" aria-hidden="true">1</span><span class="h-num">1. </span><span class="h-t">一句话结论</span></h2>
 <blockquote data-anchor-id="s1-note-1">
-<p>Dust 用激活扰动估计信用，不用反向传播。Noise 是固定设定下的无反传竞速赛。<strong>2026-10-22 起训练数据从 10M token 升到 30M</strong>；旧 10M 赛道整表归档到 <code>archive/10M/</code>，不再收新提交。现主榜三条赛道：Track 1（最低 val）、Track 2（到 val <strong>3.5</strong> 的最短时间）、<strong>新 Track 3</strong>（架构可改）。官方主榜 Track 1 / Track 3 仍写 <strong>val 3.409 / 约 1 h 43 min</strong>（10M #14 配方迁入）。<strong>Track 2 短墙钟纪录</strong>：PR <strong>#44</strong>（RobertTLange，台北 2026-10-24 约 07:54 合并）写入 identity path → Cut-lite，<strong>val 3.4988 / 约 8.3 min</strong>（相对迁入配方的 1 h 43 min 约 <strong>×12.3</strong> 更快）。反传参考仍是 Adam <strong>3.419</strong>；ANVIL II + Adam <strong>3.340</strong>。<strong>新开放 PR #45</strong>（dylantirandaz，台北 2026-10-25 约 00:03 开）：Track 3 自报 <strong>val 3.3778 / 约 3 h 50 min</strong>（quarter-turn context tap + exact future-token probes）；<strong>未合并，不当纪录</strong>。另仍开放 <strong>#10</strong>（8×B300 curriculum，非官方 H100）。Relay / CutBI 族仍关闭未合并。<sup class="cite">[<a href="#ref-noise-repo" id="cite-noise-repo-1">1</a>,<a href="#ref-noise-pr44" id="cite-noise-pr44-2">2</a>,<a href="#ref-noise-pr45" id="cite-noise-pr45-3">3</a>,<a href="#ref-noise-archive-10m" id="cite-noise-archive-10m-4">4</a>]</sup></p>
+<p>Dust 用激活扰动估计信用，不用反向传播。Noise 是固定设定下的无反传竞速赛。<strong>2026-10-22 起训练数据从 10M token 升到 30M</strong>；旧 10M 赛道整表归档到 <code>archive/10M/</code>，不再收新提交。现主榜三条赛道：Track 1（最低 val）、Track 2（到 val <strong>3.5</strong> 的最短时间）、<strong>新 Track 3</strong>（架构可改）。官方主榜 Track 1 / Track 3 仍写 <strong>val 3.409 / 约 1 h 43 min</strong>（10M #14 配方迁入）。<strong>Track 2 短墙钟纪录</strong>：PR <strong>#44</strong>（RobertTLange，台北 2026-10-24 约 07:54 合并）写入 identity path → Cut-lite，<strong>val 3.4988 / 约 8.3 min</strong>（相对迁入配方的 1 h 43 min 约 <strong>×12.3</strong> 更快）。反传参考仍是 Adam <strong>3.419</strong>；ANVIL II + Adam <strong>3.340</strong>。<strong>新开放 PR #46</strong>（CharlesDDDD，台北 2026-10-25 约 11:22 开）：Track 1 自报 <strong>val 3.3385 / 约 56 min</strong>（forward readout of cross-token credit）；相对官方 <strong>3.409 / 约 1 h 43 min</strong> 更低更快，且略低于反传 ANVIL II + Adam <strong>3.340</strong>；<strong>未合并，不当纪录</strong>。另开放 <strong>#45</strong>（Track 3 自报 <strong>3.3778 / 约 3 h 50 min</strong>）与 <strong>#10</strong>（8×B300 curriculum，非官方 H100）。Relay / CutBI 族仍关闭未合并。<sup class="cite">[<a href="#ref-noise-repo" id="cite-noise-repo-1">1</a>,<a href="#ref-noise-pr44" id="cite-noise-pr44-2">2</a>,<a href="#ref-noise-pr45" id="cite-noise-pr45-3">3</a>,<a href="#ref-noise-pr46" id="cite-noise-pr46-4">4</a>,<a href="#ref-noise-archive-10m" id="cite-noise-archive-10m-5">5</a>]</sup></p>
 </blockquote>
 <div class="table-wrap" data-anchor-id="s1-table-1" tabindex="0" role="region" aria-label="表格"><table>
 <thead>
 <tr><th class="k" scope="col">项</th>
-<th scope="col">状态（2026-10-25 约 08:23）</th>
+<th scope="col">状态（2026-10-25 约 12:10）</th>
 </tr>
 </thead>
 <tbody>
 <tr><td class="k" data-label="项"><span class="cv">Dust 论文</span></td>
-<td data-label="状态（2026-10-25 约 08:23）"><span class="cv"><a href="https://qlabs.sh/research/dust/" target="_blank" rel="noopener noreferrer">qlabs.sh/research/dust</a>，无 arXiv 编号</span></td>
+<td data-label="状态（2026-10-25 约 12:10）"><span class="cv"><a href="https://qlabs.sh/research/dust/" target="_blank" rel="noopener noreferrer">qlabs.sh/research/dust</a>，无 arXiv 编号</span></td>
 </tr>
 <tr><td class="k" data-label="项"><span class="cv">训练数据</span></td>
-<td data-label="状态（2026-10-25 约 08:23）"><span class="cv"><strong>30M</strong> token（14,648 条 × 2048）；旧 <strong>10M</strong> 已归档 <sup class="cite">[<a href="#ref-noise-archive-10m" id="cite-noise-archive-10m-4">4</a>]</sup></span></td>
+<td data-label="状态（2026-10-25 约 12:10）"><span class="cv"><strong>30M</strong> token（14,648 条 × 2048）；旧 <strong>10M</strong> 已归档 <sup class="cite">[<a href="#ref-noise-archive-10m" id="cite-noise-archive-10m-5">5</a>]</sup></span></td>
 </tr>
 <tr><td class="k" data-label="项"><span class="cv">Noise 主榜 Track 1</span></td>
-<td data-label="状态（2026-10-25 约 08:23）"><span class="cv">val <strong>3.409</strong> / 约 1 h 43 min（README #2；10M #14 配方迁入）</span></td>
+<td data-label="状态（2026-10-25 约 12:10）"><span class="cv">val <strong>3.409</strong> / 约 1 h 43 min（README #2；10M #14 配方迁入）</span></td>
 </tr>
 <tr><td class="k" data-label="项"><span class="cv">Noise 主榜 Track 2</span></td>
-<td data-label="状态（2026-10-25 约 08:23）"><span class="cv">到 <strong>3.5</strong> 的时间；短墙钟现为 <strong>3.4988</strong> / <strong>约 8.3 min</strong>（PR #44；README 另保留迁入配方 <strong>3.409</strong> / 1 h 43 min）</span></td>
+<td data-label="状态（2026-10-25 约 12:10）"><span class="cv">到 <strong>3.5</strong> 的时间；短墙钟现为 <strong>3.4988</strong> / <strong>约 8.3 min</strong>（PR #44；README 另保留迁入配方 <strong>3.409</strong> / 1 h 43 min）</span></td>
 </tr>
 <tr><td class="k" data-label="项"><span class="cv">Noise 主榜 Track 3</span></td>
-<td data-label="状态（2026-10-25 约 08:23）"><span class="cv"><strong>新开</strong>；当前同条 <strong>3.409</strong> / 约 1 h 43 min（README #2）</span></td>
+<td data-label="状态（2026-10-25 约 12:10）"><span class="cv"><strong>新开</strong>；当前同条 <strong>3.409</strong> / 约 1 h 43 min（README #2）</span></td>
 </tr>
 <tr><td class="k" data-label="项"><span class="cv">反传参考（30M README）</span></td>
-<td data-label="状态（2026-10-25 约 08:23）"><span class="cv">Adam + lr cooldown <strong>3.419</strong>；ANVIL II + Adam <strong>3.340</strong></span></td>
+<td data-label="状态（2026-10-25 约 12:10）"><span class="cv">Adam + lr cooldown <strong>3.419</strong>；ANVIL II + Adam <strong>3.340</strong></span></td>
 </tr>
 <tr><td class="k" data-label="项"><span class="cv">10M 终局（归档）</span></td>
-<td data-label="状态（2026-10-25 约 08:23）"><span class="cv">Track 1 #14 <strong>3.676</strong> / 35 min；Track 2 #22 <strong>4.186</strong> / <strong>1.6 s</strong></span></td>
+<td data-label="状态（2026-10-25 约 12:10）"><span class="cv">Track 1 #14 <strong>3.676</strong> / 35 min；Track 2 #22 <strong>4.186</strong> / <strong>1.6 s</strong></span></td>
 </tr>
 <tr><td class="k" data-label="项"><span class="cv">仍开放</span></td>
-<td data-label="状态（2026-10-25 约 08:23）"><span class="cv"><strong>#45</strong>（Track 3 自报 <strong>3.3778</strong> / 约 3 h 50 min，未合并）；<strong>#10</strong>（B300 curriculum，约 3.9804；非 H100 官方）</span></td>
+<td data-label="状态（2026-10-25 约 12:10）"><span class="cv"><strong>#46</strong>（Track 1 自报 <strong>3.3385</strong> / 约 56 min，未合并）；<strong>#45</strong>（Track 3 自报 <strong>3.3778</strong> / 约 3 h 50 min）；<strong>#10</strong>（B300 curriculum，约 3.9804；非 H100 官方）</span></td>
 </tr>
 <tr><td class="k" data-label="项"><span class="cv">「不用 Adam / 纯零阶搜索」那段记忆原话</span></td>
-<td data-label="状态（2026-10-25 约 08:23）"><span class="cv"><strong>未找到</strong></span></td>
+<td data-label="状态（2026-10-25 约 12:10）"><span class="cv"><strong>未找到</strong></span></td>
 </tr>
 </tbody>
 </table></div>
 </section>
 <section class="card" id="s2" data-section="s2" aria-labelledby="s2-h"><h2 id="s2-h"><span class="badge" aria-hidden="true">2</span><span class="h-num">2. </span><span class="h-t">Dust：方法与结果</span></h2>
 <blockquote data-anchor-id="s2-note-1">
-<p>论文标题：<em>Dust: Pretraining Transformers Without Backpropagation</em>。作者：Samip Dahal、Bishwas Mandal、Serdar Gülbahar、Akshay Vegesna。日期写「October 2026」。代码：<a href="https://github.com/qlabs-eng/dust" target="_blank" rel="noopener noreferrer">qlabs-eng/dust</a>。<sup class="cite">[<a href="#ref-dust-paper" id="cite-dust-paper-5">5</a>,<a href="#ref-dust-code" id="cite-dust-code-6">6</a>]</sup></p>
+<p>论文标题：<em>Dust: Pretraining Transformers Without Backpropagation</em>。作者：Samip Dahal、Bishwas Mandal、Serdar Gülbahar、Akshay Vegesna。日期写「October 2026」。代码：<a href="https://github.com/qlabs-eng/dust" target="_blank" rel="noopener noreferrer">qlabs-eng/dust</a>。<sup class="cite">[<a href="#ref-dust-paper" id="cite-dust-paper-6">6</a>,<a href="#ref-dust-code" id="cite-dust-code-7">7</a>]</sup></p>
 </blockquote>
 <h3 id="s2-method">核心做法</h3>
 <blockquote data-anchor-id="s2-note-2">
-<p>不扰动权重，而扰动每层线性层的输出。每个 token 独立加高斯噪声。用该 token 上 loss 的变化给噪声打分。奖励加权的噪声，再与输入做外积，得到权重梯度估计。论文称这是一种 node perturbation。<sup class="cite">[<a href="#ref-dust-paper" id="cite-dust-paper-5">5</a>]</sup></p>
+<p>不扰动权重，而扰动每层线性层的输出。每个 token 独立加高斯噪声。用该 token 上 loss 的变化给噪声打分。奖励加权的噪声，再与输入做外积，得到权重梯度估计。论文称这是一种 node perturbation。<sup class="cite">[<a href="#ref-dust-paper" id="cite-dust-paper-6">6</a>]</sup></p>
 </blockquote>
 <blockquote data-anchor-id="s2-note-3">
-<p>一次前向可并行评估大量扰动（「虚拟种群」）。论文宣称相对 EGGROLL 量级约 <strong>10³–10⁴</strong> 倍更高效。<sup class="cite">[<a href="#ref-dust-paper" id="cite-dust-paper-5">5</a>,<a href="#ref-eggroll" id="cite-eggroll-7">7</a>]</sup></p>
+<p>一次前向可并行评估大量扰动（「虚拟种群」）。论文宣称相对 EGGROLL 量级约 <strong>10³–10⁴</strong> 倍更高效。<sup class="cite">[<a href="#ref-dust-paper" id="cite-dust-paper-6">6</a>,<a href="#ref-eggroll" id="cite-eggroll-8">8</a>]</sup></p>
 </blockquote>
 <h3 id="s2-results">设定与头条结果</h3>
 <blockquote data-anchor-id="s2-note-4">
-<p>FineWeb、4096 BPE、batch 16k token、单 epoch、SGD+momentum。基座模型 8 层 × 宽 512。<sup class="cite">[<a href="#ref-dust-paper" id="cite-dust-paper-5">5</a>]</sup></p>
+<p>FineWeb、4096 BPE、batch 16k token、单 epoch、SGD+momentum。基座模型 8 层 × 宽 512。<sup class="cite">[<a href="#ref-dust-paper" id="cite-dust-paper-6">6</a>]</sup></p>
 </blockquote>
 <blockquote data-anchor-id="s2-note-5">
-<p>用 SGD 时，Dust 在小数据预算上可接近甚至低于反传。用 Adam 时，作者也报 Dust 的拟合极限可接近反传。独立复现指出：SGD 下接近；AdamW 下 Dust 仍落后约 0.5 nat，且 GPU 小时约是反传的 2000 倍量级（Benhao Huang / @huskydogewoof，2026-10-07）。<sup class="cite">[<a href="#ref-dust-paper" id="cite-dust-paper-5">5</a>]</sup></p>
+<p>用 SGD 时，Dust 在小数据预算上可接近甚至低于反传。用 Adam 时，作者也报 Dust 的拟合极限可接近反传。独立复现指出：SGD 下接近；AdamW 下 Dust 仍落后约 0.5 nat，且 GPU 小时约是反传的 2000 倍量级（Benhao Huang / @huskydogewoof，2026-10-07）。<sup class="cite">[<a href="#ref-dust-paper" id="cite-dust-paper-6">6</a>]</sup></p>
 </blockquote>
 <blockquote data-anchor-id="s2-note-6">
-<p>Samip 发布帖（2026-10-06 03:41）：「first zeroth-order method to pretrain transformers to approach and sometimes even <em>exceed</em> backprop」。<sup class="cite">[<a href="#ref-samip-dust4" id="cite-samip-dust4-8">8</a>]</sup></p>
+<p>Samip 发布帖（2026-10-06 03:41）：「first zeroth-order method to pretrain transformers to approach and sometimes even <em>exceed</em> backprop」。<sup class="cite">[<a href="#ref-samip-dust4" id="cite-samip-dust4-9">9</a>]</sup></p>
 </blockquote>
 </section>
 <section class="card" id="s3" data-section="s3" aria-labelledby="s3-h"><h2 id="s3-h"><span class="badge" aria-hidden="true">3</span><span class="h-num">3. </span><span class="h-t">Noise：无反传预训练竞速</span></h2>
 <blockquote data-anchor-id="s3-note-1">
-<p>页面：<a href="https://qlabs.sh/noise/" target="_blank" rel="noopener noreferrer">qlabs.sh/noise</a>。仓库：<a href="https://github.com/qlabs-eng/noise" target="_blank" rel="noopener noreferrer">qlabs-eng/noise</a>。发布约 2026-10-13 04:17。<sup class="cite">[<a href="#ref-noise-page" id="cite-noise-page-9">9</a>,<a href="#ref-noise-repo" id="cite-noise-repo-1">1</a>]</sup></p>
+<p>页面：<a href="https://qlabs.sh/noise/" target="_blank" rel="noopener noreferrer">qlabs.sh/noise</a>。仓库：<a href="https://github.com/qlabs-eng/noise" target="_blank" rel="noopener noreferrer">qlabs-eng/noise</a>。发布约 2026-10-13 04:17。<sup class="cite">[<a href="#ref-noise-page" id="cite-noise-page-10">10</a>,<a href="#ref-noise-repo" id="cite-noise-repo-1">1</a>]</sup></p>
 </blockquote>
 <h3 id="s3-rules">规则（固定什么）</h3>
 <blockquote data-anchor-id="s3-note-2">
@@ -129,11 +129,11 @@
 </tbody>
 </table></div>
 <blockquote data-anchor-id="s3-note-4">
-<p>30M README 反传参考：Adam + lr cooldown <strong>3.419</strong>；ANVIL II（块矩阵）+ Adam <strong>3.340</strong>。目标仍写：大幅超过反传。旧 10M 时代 Track 2 目标是 <strong>4.2</strong>；该表见归档。<sup class="cite">[<a href="#ref-noise-repo" id="cite-noise-repo-1">1</a>,<a href="#ref-noise-archive-10m" id="cite-noise-archive-10m-4">4</a>]</sup></p>
+<p>30M README 反传参考：Adam + lr cooldown <strong>3.419</strong>；ANVIL II（块矩阵）+ Adam <strong>3.340</strong>。目标仍写：大幅超过反传。旧 10M 时代 Track 2 目标是 <strong>4.2</strong>；该表见归档。<sup class="cite">[<a href="#ref-noise-repo" id="cite-noise-repo-1">1</a>,<a href="#ref-noise-archive-10m" id="cite-noise-archive-10m-5">5</a>]</sup></p>
 </blockquote>
 <h3 id="s3-board">官方榜快照（已合并纪录）</h3>
 <blockquote data-anchor-id="s3-note-5">
-<p>以下为现行 <strong>30M</strong> README（2026-10-25 约 08:23 核对；官方表相对昨日无变）。数字会变。<sup class="cite">[<a href="#ref-noise-repo" id="cite-noise-repo-1">1</a>,<a href="#ref-noise-pr44" id="cite-noise-pr44-2">2</a>]</sup></p>
+<p>以下为现行 <strong>30M</strong> README（2026-10-25 约 12:10 核对；官方已合并表相对 08:23 快照无变）。数字会变。<sup class="cite">[<a href="#ref-noise-repo" id="cite-noise-repo-1">1</a>,<a href="#ref-noise-pr44" id="cite-noise-pr44-2">2</a>]</sup></p>
 </blockquote>
 <p data-anchor-id="s3-p-b8c54c"><strong>Track 1（30M，val loss ↓）</strong></p>
 <div class="table-wrap wide stack" data-anchor-id="s3-table-2" tabindex="0" role="region" aria-label="表格"><table>
@@ -213,7 +213,7 @@
 <blockquote data-anchor-id="s3-note-6">
 <p>Track 1 / Track 3：相对 30M 反传 Adam <strong>3.419</strong>，现行无反传 <strong>3.409</strong> 已略低；相对 ANVIL II + Adam <strong>3.340</strong> 仍高。Track 2：短墙钟以 PR #44 的 <strong>约 8.3 min</strong>（val <strong>3.4988</strong>，README 写 <strong>3.499</strong> / <strong>8 min 20 s</strong>）为准；迁入配方的 1 h 43 min 仍留在表上，但不是最短时间。</p>
 </blockquote>
-<p data-anchor-id="s3-p-9e1fa2"><strong>10M 归档终局（不再收新提交）</strong> <sup class="cite">[<a href="#ref-noise-archive-10m" id="cite-noise-archive-10m-4">4</a>]</sup></p>
+<p data-anchor-id="s3-p-9e1fa2"><strong>10M 归档终局（不再收新提交）</strong> <sup class="cite">[<a href="#ref-noise-archive-10m" id="cite-noise-archive-10m-5">5</a>]</sup></p>
 <div class="table-wrap wide" data-anchor-id="s3-table-5" tabindex="0" role="region" aria-label="表格"><table>
 <thead>
 <tr><th class="k" scope="col">赛道</th>
@@ -236,12 +236,12 @@
 </tr>
 </tbody>
 </table></div>
-<aside class="callout callout-warning" role="note" id="s3-warning-dbb0a9" data-anchor-id="s3-warning-dbb0a9"><p class="callout-title">关闭的 PR 不是纪录</p><p>Relay 族（#20/#21/#22）与 CutBI（#17）已关闭未合并。作者自报数字<strong>不要</strong>当作官方纪录。见 §6。现仍开放：<strong>#45</strong>（Track 3 自报）与 <strong>#10</strong>（B300）。</p>
+<aside class="callout callout-warning" role="note" id="s3-warning-0732aa" data-anchor-id="s3-warning-0732aa"><p class="callout-title">关闭的 PR 不是纪录</p><p>Relay 族（#20/#21/#22）与 CutBI（#17）已关闭未合并。作者自报数字<strong>不要</strong>当作官方纪录。见 §6。现仍开放：<strong>#46</strong>（Track 1 自报）、<strong>#45</strong>（Track 3 自报）与 <strong>#10</strong>（B300）。</p>
 </aside>
 </section>
 <section class="card" id="s4" data-section="s4" aria-labelledby="s4-h"><h2 id="s4-h"><span class="badge" aria-hidden="true">4</span><span class="h-num">4. </span><span class="h-t">Boost → Cut：关键基线（已被后续纪录压过）</span></h2>
 <blockquote data-anchor-id="s4-note-1">
-<p>作者：@spicey_lemonade（GitHub <code>spicylemonade</code>）。帖：<a href="https://x.com/spicey_lemonade/status/2111636408540799141" target="_blank" rel="noopener noreferrer">2026-10-18 09:52</a>。代码：<a href="https://github.com/spicylemonade/boost-cut" target="_blank" rel="noopener noreferrer">boost-cut</a>。Noise PR <strong>#11</strong>（Track 1）与 <strong>#12</strong>（Track 2）于当日约 15:48 由 <code>serdardoesml</code> 合并；@cs_serdar 写「insane, reproduced and merged!」。<sup class="cite">[<a href="#ref-boost-cut-post" id="cite-boost-cut-post-10">10</a>,<a href="#ref-boost-cut-code" id="cite-boost-cut-code-11">11</a>]</sup></p>
+<p>作者：@spicey_lemonade（GitHub <code>spicylemonade</code>）。帖：<a href="https://x.com/spicey_lemonade/status/2111636408540799141" target="_blank" rel="noopener noreferrer">2026-10-18 09:52</a>。代码：<a href="https://github.com/spicylemonade/boost-cut" target="_blank" rel="noopener noreferrer">boost-cut</a>。Noise PR <strong>#11</strong>（Track 1）与 <strong>#12</strong>（Track 2）于当日约 15:48 由 <code>serdardoesml</code> 合并；@cs_serdar 写「insane, reproduced and merged!」。<sup class="cite">[<a href="#ref-boost-cut-post" id="cite-boost-cut-post-11">11</a>,<a href="#ref-boost-cut-code" id="cite-boost-cut-code-12">12</a>]</sup></p>
 </blockquote>
 <h3 id="s4-method">两阶段规则</h3>
 <blockquote data-anchor-id="s4-note-2">
@@ -278,10 +278,10 @@
 </tr>
 </tbody>
 </table></div>
-<p data-anchor-id="s4-p-e376f1"><sup class="cite">[<a href="#ref-boost-cut-2p3x" id="cite-boost-cut-2p3x-12">12</a>]</sup></p>
+<p data-anchor-id="s4-p-e376f1"><sup class="cite">[<a href="#ref-boost-cut-2p3x" id="cite-boost-cut-2p3x-13">13</a>]</sup></p>
 <h3 id="s4-cammarata">与 Cammarata 文章的关系</h3>
 <blockquote data-anchor-id="s4-note-8">
-<p>文章：<a href="https://www.goodfire.com/research/already-clean" target="_blank" rel="noopener noreferrer">Neural Networks Are Already Clean</a>（Goodfire，Nick Cammarata；X 发布约 2026-10-15 23:40）。作者自述用到两点：<strong>Strong routes</strong>（弱激活几乎可消、功能骑在强激活上）与 <strong>circuit racing / head start</strong>（解释为何 Boost 先跑）。<sup class="cite">[<a href="#ref-cammarata-essay" id="cite-cammarata-essay-13">13</a>]</sup></p>
+<p>文章：<a href="https://www.goodfire.com/research/already-clean" target="_blank" rel="noopener noreferrer">Neural Networks Are Already Clean</a>（Goodfire，Nick Cammarata；X 发布约 2026-10-15 23:40）。作者自述用到两点：<strong>Strong routes</strong>（弱激活几乎可消、功能骑在强激活上）与 <strong>circuit racing / head start</strong>（解释为何 Boost 先跑）。<sup class="cite">[<a href="#ref-cammarata-essay" id="cite-cammarata-essay-14">14</a>]</sup></p>
 </blockquote>
 <h3 id="s4-cost">相对反传的代价（作者草稿）</h3>
 <blockquote data-anchor-id="s4-note-9">
@@ -322,7 +322,7 @@
 <p>「i strongly predict this tweet is looking at an extremely poorly optimized baseline, and the ideas in the essay do not help well tuned training stacks. it's like dropping entire layers from shitty models.」</p>
 </blockquote>
 <blockquote data-anchor-id="s4-note-13">
-<p>这是预测，不是他给出的实测。含义：加速是相对粗糙的 Dust 纪录算的；在已调好的训练栈上，「砍弱激活」未必有用。<sup class="cite">[<a href="#ref-leo-gao-critique" id="cite-leo-gao-critique-14">14</a>]</sup></p>
+<p>这是预测，不是他给出的实测。含义：加速是相对粗糙的 Dust 纪录算的；在已调好的训练栈上，「砍弱激活」未必有用。<sup class="cite">[<a href="#ref-leo-gao-critique" id="cite-leo-gao-critique-15">15</a>]</sup></p>
 </blockquote>
 <h3 id="s4-overnight">隔夜反应（Q Labs）</h3>
 <blockquote data-anchor-id="s4-note-14">
@@ -336,13 +336,13 @@
 <aside class="callout callout-warning" role="note" id="s5-warning-db2532" data-anchor-id="s5-warning-db2532"><p class="callout-title">NOT FOUND</p><p>未找到与记忆完全对应的原文：「大家以为 Adam 近最优 → 后来发现不用 Adam、纯零阶搜索也行」。检索范围含 Samip 帖、Dust/Noise 线程、Boost → Cut 回复、Cammarata 近帖、Dust 论文与 Noise 页/README。X 全文检索偏关键词，释义帖仍可能漏网。以下是<strong>最接近的已核实原话</strong>。</p>
 </aside>
 <blockquote data-anchor-id="s5-note-1">
-<p>Samip，Dust 线程 4/4：<sup class="cite">[<a href="#ref-samip-dust4" id="cite-samip-dust4-8">8</a>]</sup></p>
+<p>Samip，Dust 线程 4/4：<sup class="cite">[<a href="#ref-samip-dust4" id="cite-samip-dust4-9">9</a>]</sup></p>
 </blockquote>
 <blockquote data-anchor-id="s5-note-2">
 <p>「the bitter lesson will strike optimization research too, and zeroth-order methods (i.e. the simplest form of optimization) might eventually replace backprop altogether!」</p>
 </blockquote>
 <blockquote data-anchor-id="s5-note-3">
-<p>Samip 谈 Adam：<sup class="cite">[<a href="#ref-samip-adam" id="cite-samip-adam-15">15</a>]</sup></p>
+<p>Samip 谈 Adam：<sup class="cite">[<a href="#ref-samip-adam" id="cite-samip-adam-16">16</a>]</sup></p>
 </blockquote>
 <blockquote data-anchor-id="s5-note-4">
 <p>「adam wasn't the main focus of the paper b/c i think optimizers will have to coevolve around zeroth-order optimization too (everything today has been built for backprop)」</p>
@@ -355,7 +355,7 @@
 </section>
 <section class="card" id="s6" data-section="s6" aria-labelledby="s6-h"><h2 id="s6-h"><span class="badge" aria-hidden="true">6</span><span class="h-num">6. </span><span class="h-t">PR 裁定与仍开放项</span></h2>
 <blockquote data-anchor-id="s6-note-1">
-<p>2026-10-20 约 10:14–10:25（台北）：维护者关闭 Relay 族，并合并 Own queries 与早期 Track 2 压时间条目。到 2026-10-22 白天：PR #23 → 10M Track 1 #11；Future-token probes → #12；Track 2 刷到 <strong>2.5 s</strong>。<strong>同日晚间到次日凌晨（UTC）</strong>：合并 <strong>#35 / #40 / #41 / #42</strong>，并把主赛切到 <strong>30M</strong>（旧表进 <code>archive/10M/</code>）。下列以 GitHub / README 为准。<sup class="cite">[<a href="#ref-noise-pr20" id="cite-noise-pr20-16">16</a>,<a href="#ref-noise-pr23" id="cite-noise-pr23-17">17</a>,<a href="#ref-noise-repo" id="cite-noise-repo-1">1</a>,<a href="#ref-noise-archive-10m" id="cite-noise-archive-10m-4">4</a>]</sup></p>
+<p>2026-10-20 约 10:14–10:25（台北）：维护者关闭 Relay 族，并合并 Own queries 与早期 Track 2 压时间条目。到 2026-10-22 白天：PR #23 → 10M Track 1 #11；Future-token probes → #12；Track 2 刷到 <strong>2.5 s</strong>。<strong>同日晚间到次日凌晨（UTC）</strong>：合并 <strong>#35 / #40 / #41 / #42</strong>，并把主赛切到 <strong>30M</strong>（旧表进 <code>archive/10M/</code>）。下列以 GitHub / README 为准。<sup class="cite">[<a href="#ref-noise-pr20" id="cite-noise-pr20-17">17</a>,<a href="#ref-noise-pr23" id="cite-noise-pr23-18">18</a>,<a href="#ref-noise-repo" id="cite-noise-repo-1">1</a>,<a href="#ref-noise-archive-10m" id="cite-noise-archive-10m-5">5</a>]</sup></p>
 </blockquote>
 <h3 id="s6-merged">已合并（写入 README）</h3>
 <div class="table-wrap wide stack" data-anchor-id="s6-table-1" tabindex="0" role="region" aria-label="表格"><table>
@@ -395,22 +395,22 @@
 <tr><td class="k" data-label="PR / README"><span class="cv"><strong>#35</strong> first hop + VQ</span></td>
 <td data-label="作者"><span class="cv">hoo0681</span></td>
 <td data-label="官方结果"><span class="cv">10M Track 1 #13：val <strong>3.707</strong> / 约 12 h 34 min</span></td>
-<td data-label="备注"><span class="cv">2026-10-22 约 02:38 合并（归档写 3.707）<sup class="cite">[<a href="#ref-noise-pr35" id="cite-noise-pr35-18">18</a>]</sup></span></td>
+<td data-label="备注"><span class="cv">2026-10-22 约 02:38 合并（归档写 3.707）<sup class="cite">[<a href="#ref-noise-pr35" id="cite-noise-pr35-19">19</a>]</sup></span></td>
 </tr>
 <tr><td class="k" data-label="PR / README"><span class="cv"><strong>#40</strong> end merge</span></td>
 <td data-label="作者"><span class="cv">CharlesDDDD</span></td>
 <td data-label="官方结果"><span class="cv">10M Track 1 #14：val <strong>3.676</strong> / <strong>35 min</strong></span></td>
-<td data-label="备注"><span class="cv">2026-10-22 约 03:21 合并；成为 10M 终局，并迁入 30M 主榜配方 <sup class="cite">[<a href="#ref-noise-pr40" id="cite-noise-pr40-19">19</a>]</sup></span></td>
+<td data-label="备注"><span class="cv">2026-10-22 约 03:21 合并；成为 10M 终局，并迁入 30M 主榜配方 <sup class="cite">[<a href="#ref-noise-pr40" id="cite-noise-pr40-20">20</a>]</sup></span></td>
 </tr>
 <tr><td class="k" data-label="PR / README"><span class="cv"><strong>#41</strong> faster update</span></td>
 <td data-label="作者"><span class="cv">RobertTLange</span></td>
 <td data-label="官方结果"><span class="cv">10M Track 2 #21：val <strong>4.185</strong> / <strong>1.7 s</strong></span></td>
-<td data-label="备注"><span class="cv">同批合并 <sup class="cite">[<a href="#ref-noise-pr41" id="cite-noise-pr41-20">20</a>]</sup></span></td>
+<td data-label="备注"><span class="cv">同批合并 <sup class="cite">[<a href="#ref-noise-pr41" id="cite-noise-pr41-21">21</a>]</sup></span></td>
 </tr>
 <tr><td class="k" data-label="PR / README"><span class="cv"><strong>#42</strong> 16 rows / 250 updates</span></td>
 <td data-label="作者"><span class="cv">areu01or00</span></td>
 <td data-label="官方结果"><span class="cv">10M Track 2 #22：val <strong>4.186</strong> / <strong>1.6 s</strong></span></td>
-<td data-label="备注"><span class="cv">同批合并；10M Track 2 终局 <sup class="cite">[<a href="#ref-noise-pr42" id="cite-noise-pr42-21">21</a>]</sup></span></td>
+<td data-label="备注"><span class="cv">同批合并；10M Track 2 终局 <sup class="cite">[<a href="#ref-noise-pr42" id="cite-noise-pr42-22">22</a>]</sup></span></td>
 </tr>
 <tr><td class="k" data-label="PR / README"><span class="cv">30M 主榜（迁入）</span></td>
 <td data-label="作者"><span class="cv">多方</span></td>
@@ -462,7 +462,7 @@
 </tbody>
 </table></div>
 <blockquote data-anchor-id="s6-note-2">
-<p>Relay 作者曾争辩：不对非线性做解析转置雅可比，故不是 reverse-mode autodiff。维护者裁定仍不合并。<strong>自报数字不当纪录。</strong><sup class="cite">[<a href="#ref-noise-pr17" id="cite-noise-pr17-22">22</a>]</sup></p>
+<p>Relay 作者曾争辩：不对非线性做解析转置雅可比，故不是 reverse-mode autodiff。维护者裁定仍不合并。<strong>自报数字不当纪录。</strong><sup class="cite">[<a href="#ref-noise-pr17" id="cite-noise-pr17-23">23</a>]</sup></p>
 </blockquote>
 <h3 id="s6-open">仍开放</h3>
 <div class="table-wrap wide stack" data-anchor-id="s6-table-3" tabindex="0" role="region" aria-label="表格"><table>
@@ -474,6 +474,11 @@
 </tr>
 </thead>
 <tbody>
+<tr><td class="k" data-label="PR"><span class="cv"><strong>#46</strong></span></td>
+<td data-label="作者"><span class="cv">CharlesDDDD</span></td>
+<td data-label="自报"><span class="cv">Track 1 <strong>3.3385</strong> / 约 <strong>56 min</strong>（seed 0，一台 8×H100；合并前 3.3645）</span></td>
+<td data-label="备注"><span class="cv">台北 2026-10-25 约 11:22 开。方法：Cut 用 forward readout 量跨 token 信用（沿真实路径，不再只靠 residual identity）。相对官方 Track 1 <strong>3.409 / 约 1 h 43 min</strong> 更低更快；自报略低于反传 ANVIL II + Adam <strong>3.340</strong>。<strong>未合并，不当纪录。</strong> <sup class="cite">[<a href="#ref-noise-pr46" id="cite-noise-pr46-4">4</a>]</sup></span></td>
+</tr>
 <tr><td class="k" data-label="PR"><span class="cv"><strong>#45</strong></span></td>
 <td data-label="作者"><span class="cv">dylantirandaz</span></td>
 <td data-label="自报"><span class="cv">Track 3 <strong>3.3778</strong> / 约 <strong>3 h 50 min</strong>（seed 0，一台 8×H100）</span></td>
@@ -499,23 +504,23 @@
 </tr>
 </thead>
 <tbody>
-<tr><td class="k" data-label="工作"><span class="cv">Salimans et al. 2017 <sup class="cite">[<a href="#ref-es-salimans" id="cite-es-salimans-23">23</a>]</sup></span></td>
+<tr><td class="k" data-label="工作"><span class="cv">Salimans et al. 2017 <sup class="cite">[<a href="#ref-es-salimans" id="cite-es-salimans-24">24</a>]</sup></span></td>
 <td data-label="一句话"><span class="cv">权重空间 ES，可扩到大量并行 worker</span></td>
 <td data-label="关联"><span class="cv">Dust 对标的权重空间基线</span></td>
 </tr>
-<tr><td class="k" data-label="工作"><span class="cv">MeZO <sup class="cite">[<a href="#ref-mezo" id="cite-mezo-24">24</a>]</sup></span></td>
+<tr><td class="k" data-label="工作"><span class="cv">MeZO <sup class="cite">[<a href="#ref-mezo" id="cite-mezo-25">25</a>]</sup></span></td>
 <td data-label="一句话"><span class="cv">两次前向的 ZO-SGD，微调级省显存</span></td>
 <td data-label="关联"><span class="cv">LLM 规模 ZO 先例；非预训练</span></td>
 </tr>
-<tr><td class="k" data-label="工作"><span class="cv">Vegesna &amp; Dahal <sup class="cite">[<a href="#ref-vegesna-dahal" id="cite-vegesna-dahal-25">25</a>]</sup></span></td>
+<tr><td class="k" data-label="工作"><span class="cv">Vegesna &amp; Dahal <sup class="cite">[<a href="#ref-vegesna-dahal" id="cite-vegesna-dahal-26">26</a>]</sup></span></td>
 <td data-label="一句话"><span class="cv">激活空间搜索再回归</span></td>
 <td data-label="关联"><span class="cv">Q Labs 前作</span></td>
 </tr>
-<tr><td class="k" data-label="工作"><span class="cv">ES at Scale <sup class="cite">[<a href="#ref-es-at-scale" id="cite-es-at-scale-26">26</a>]</sup></span></td>
+<tr><td class="k" data-label="工作"><span class="cv">ES at Scale <sup class="cite">[<a href="#ref-es-at-scale" id="cite-es-at-scale-27">27</a>]</sup></span></td>
 <td data-label="一句话"><span class="cv">十亿参数级全参 ES 微调</span></td>
 <td data-label="关联"><span class="cv">近期 LLM ES</span></td>
 </tr>
-<tr><td class="k" data-label="工作"><span class="cv">EGGROLL <sup class="cite">[<a href="#ref-eggroll" id="cite-eggroll-7">7</a>]</sup></span></td>
+<tr><td class="k" data-label="工作"><span class="cv">EGGROLL <sup class="cite">[<a href="#ref-eggroll" id="cite-eggroll-8">8</a>]</sup></span></td>
 <td data-label="一句话"><span class="cv">低秩结构化 ES，冲吞吐</span></td>
 <td data-label="关联"><span class="cv">Dust 宣称相对它 10³–10⁴× 更高效</span></td>
 </tr>
@@ -530,6 +535,7 @@
 <li>Boost → Cut 在 243M 的终配：草稿写 pending。</li>
 <li>维护者承诺澄清的规则边界（块间信用传递 / 不可微部件）：<strong>待 README 再更新</strong>（30M README 已写「精神裁定」）。</li>
 <li>30M Track 2 短墙钟：已出现。PR <strong>#44</strong>（RobertTLange）于台北 2026-10-24 约 07:54 合并，<strong>3.4988 / 约 8.3 min</strong>。<sup class="cite">[<a href="#ref-noise-pr44" id="cite-noise-pr44-2">2</a>]</sup></li>
+<li>30M Track 1 开放自报：PR <strong>#46</strong>（CharlesDDDD）自报 <strong>3.3385 / 约 56 min</strong>；官方表仍是 <strong>3.409 / 约 1 h 43 min</strong>。待维护者复现与裁定。<sup class="cite">[<a href="#ref-noise-pr46" id="cite-noise-pr46-4">4</a>]</sup></li>
 <li>30M Track 3 开放自报：PR <strong>#45</strong>（dylantirandaz）自报 <strong>3.3778 / 约 3 h 50 min</strong>；官方表仍是 <strong>3.409</strong>。待维护者复现与裁定。<sup class="cite">[<a href="#ref-noise-pr45" id="cite-noise-pr45-3">3</a>]</sup></li>
 <li>「不用 Adam」那段记忆原文：若有截图 / 长文 / 播客线索，可再挖。</li>
 </ul>
@@ -538,13 +544,13 @@
 <li><a href="https://qlabs.sh/research/dust/" target="_blank" rel="noopener noreferrer">Dust 论文</a> · <a href="https://github.com/qlabs-eng/dust" target="_blank" rel="noopener noreferrer">Dust 代码</a></li>
 <li><a href="https://qlabs.sh/noise/" target="_blank" rel="noopener noreferrer">Noise</a> · <a href="https://github.com/qlabs-eng/noise" target="_blank" rel="noopener noreferrer">Noise 仓库</a> · <a href="https://github.com/qlabs-eng/noise/blob/main/archive/10M/README.md" target="_blank" rel="noopener noreferrer">10M 归档</a></li>
 <li><a href="https://github.com/spicylemonade/boost-cut" target="_blank" rel="noopener noreferrer">Boost → Cut</a> · <a href="https://x.com/spicey_lemonade/status/2111636408540799141" target="_blank" rel="noopener noreferrer">作者帖</a></li>
-<li><a href="https://github.com/qlabs-eng/noise/pull/40" target="_blank" rel="noopener noreferrer">PR #40</a>（已合并，10M #14 / 30M 配方来源） · <a href="https://github.com/qlabs-eng/noise/pull/42" target="_blank" rel="noopener noreferrer">PR #42</a>（已合并，10M Track 2 1.6 s） · <a href="https://github.com/qlabs-eng/noise/pull/44" target="_blank" rel="noopener noreferrer">PR #44</a>（已合并，30M Track 2 约 8.3 min） · <a href="https://github.com/qlabs-eng/noise/pull/45" target="_blank" rel="noopener noreferrer">PR #45</a>（开放，Track 3 自报 3.3778）</li>
+<li><a href="https://github.com/qlabs-eng/noise/pull/40" target="_blank" rel="noopener noreferrer">PR #40</a>（已合并，10M #14 / 30M 配方来源） · <a href="https://github.com/qlabs-eng/noise/pull/42" target="_blank" rel="noopener noreferrer">PR #42</a>（已合并，10M Track 2 1.6 s） · <a href="https://github.com/qlabs-eng/noise/pull/44" target="_blank" rel="noopener noreferrer">PR #44</a>（已合并，30M Track 2 约 8.3 min） · <a href="https://github.com/qlabs-eng/noise/pull/46" target="_blank" rel="noopener noreferrer">PR #46</a>（开放，Track 1 自报 3.3385 / 56 min） · <a href="https://github.com/qlabs-eng/noise/pull/45" target="_blank" rel="noopener noreferrer">PR #45</a>（开放，Track 3 自报 3.3778）</li>
 <li><a href="https://github.com/qlabs-eng/noise/pull/41" target="_blank" rel="noopener noreferrer">PR #41</a> · <a href="https://github.com/qlabs-eng/noise/pull/35" target="_blank" rel="noopener noreferrer">PR #35</a>（均已合并进 10M 归档）</li>
 <li><a href="https://github.com/qlabs-eng/noise/pull/20" target="_blank" rel="noopener noreferrer">Relay PR #20</a> · <a href="https://x.com/EmanueleRodola/status/2112218292634939901" target="_blank" rel="noopener noreferrer">作者帖</a></li>
 <li><a href="https://www.goodfire.com/research/already-clean" target="_blank" rel="noopener noreferrer">Cammarata 文章</a></li>
 </ul>
 </section>
-<section class="card refs" id="refs" data-section="refs" aria-labelledby="refs-h"><h2 id="refs-h"><span class="h-t">参考文献</span></h2><ol class="references"><li id="ref-noise-repo">Noise repo, <a href="https://github.com/qlabs-eng/noise" target="_blank" rel="noopener noreferrer">qlabs-eng/noise</a></li><li id="ref-noise-pr44">Noise PR #44 identity path then Cut-lite (merged, 30M Track 2 3.4988 / ~8.3 min), <a href="https://github.com/qlabs-eng/noise/pull/44" target="_blank" rel="noopener noreferrer">qlabs-eng/noise#44</a></li><li id="ref-noise-pr45">Noise PR #45 Track 3 quarter-turn + exact future probes (open, claim 3.3778 / ~3 h 50 min), <a href="https://github.com/qlabs-eng/noise/pull/45" target="_blank" rel="noopener noreferrer">qlabs-eng/noise#45</a></li><li id="ref-noise-archive-10m">Noise 10M archive README, <a href="https://github.com/qlabs-eng/noise/blob/main/archive/10M/README.md" target="_blank" rel="noopener noreferrer">qlabs-eng/noise archive/10M</a></li><li id="ref-dust-paper">Dust: Pretraining Transformers Without Backpropagation, <a href="https://qlabs.sh/research/dust/" target="_blank" rel="noopener noreferrer">qlabs.sh/research/dust</a></li><li id="ref-dust-code">Dust code, <a href="https://github.com/qlabs-eng/dust" target="_blank" rel="noopener noreferrer">qlabs-eng/dust</a></li><li id="ref-eggroll">EGGROLL, <a href="https://arxiv.org/abs/2511.16652" target="_blank" rel="noopener noreferrer">arXiv:2511.16652</a></li><li id="ref-samip-dust4">Samip Dust thread 4/4, <a href="https://x.com/industriaalist/status/2107194546216165610" target="_blank" rel="noopener noreferrer">@industriaalist</a></li><li id="ref-noise-page">Noise speedrun, <a href="https://qlabs.sh/noise/" target="_blank" rel="noopener noreferrer">qlabs.sh/noise</a></li><li id="ref-boost-cut-post">Boost → Cut announcement, <a href="https://x.com/spicey_lemonade/status/2111636408540799141" target="_blank" rel="noopener noreferrer">@spicey_lemonade</a></li><li id="ref-boost-cut-code">Boost → Cut code, <a href="https://github.com/spicylemonade/boost-cut" target="_blank" rel="noopener noreferrer">spicylemonade/boost-cut</a></li><li id="ref-boost-cut-2p3x">Author clarifies 2.3× vs 9.4×, <a href="https://x.com/spicey_lemonade/status/2111886525734764840" target="_blank" rel="noopener noreferrer">@spicey_lemonade</a></li><li id="ref-cammarata-essay">Nick Cammarata, <a href="https://www.goodfire.com/research/already-clean" target="_blank" rel="noopener noreferrer">Neural Networks Are Already Clean</a></li><li id="ref-leo-gao-critique">Leo Gao critique, <a href="https://x.com/nabla_theta/status/2111738788988977454" target="_blank" rel="noopener noreferrer">@nabla_theta</a></li><li id="ref-samip-adam">Samip on Adam coevolution, <a href="https://x.com/industriaalist/status/2107217747533033770" target="_blank" rel="noopener noreferrer">@industriaalist</a></li><li id="ref-noise-pr20">Noise PR #20 Relay (closed, unmerged), <a href="https://github.com/qlabs-eng/noise/pull/20" target="_blank" rel="noopener noreferrer">qlabs-eng/noise#20</a></li><li id="ref-noise-pr23">Noise PR #23 value path in Cut (merged as Track 1 #11, val 3.777), <a href="https://github.com/qlabs-eng/noise/pull/23" target="_blank" rel="noopener noreferrer">qlabs-eng/noise#23</a></li><li id="ref-noise-pr35">Noise PR #35 first hop + VQ remainder (merged as 10M Track 1 #13, val 3.707), <a href="https://github.com/qlabs-eng/noise/pull/35" target="_blank" rel="noopener noreferrer">qlabs-eng/noise#35</a></li><li id="ref-noise-pr40">Noise PR #40 Noise with merge (merged as 10M Track 1 #14, val 3.676), <a href="https://github.com/qlabs-eng/noise/pull/40" target="_blank" rel="noopener noreferrer">qlabs-eng/noise#40</a></li><li id="ref-noise-pr41">Noise PR #41 faster update (merged as 10M Track 2 #21, val 4.185 / 1.7 s), <a href="https://github.com/qlabs-eng/noise/pull/41" target="_blank" rel="noopener noreferrer">qlabs-eng/noise#41</a></li><li id="ref-noise-pr42">Noise PR #42 16 rows / 250 updates (merged as 10M Track 2 #22, val 4.186 / 1.6 s), <a href="https://github.com/qlabs-eng/noise/pull/42" target="_blank" rel="noopener noreferrer">qlabs-eng/noise#42</a></li><li id="ref-noise-pr17">Noise PR #17 CutBI (closed by author, unmerged), <a href="https://github.com/qlabs-eng/noise/pull/17" target="_blank" rel="noopener noreferrer">qlabs-eng/noise#17</a></li><li id="ref-es-salimans">Salimans et al. 2017, <a href="https://arxiv.org/abs/1703.03864" target="_blank" rel="noopener noreferrer">arXiv:1703.03864</a></li><li id="ref-mezo">MeZO, <a href="https://arxiv.org/abs/2305.17333" target="_blank" rel="noopener noreferrer">arXiv:2305.17333</a></li><li id="ref-vegesna-dahal">Decoupling Search and Learning, <a href="https://arxiv.org/abs/2509.10973" target="_blank" rel="noopener noreferrer">arXiv:2509.10973</a></li><li id="ref-es-at-scale">ES at Scale, <a href="https://arxiv.org/abs/2509.24372" target="_blank" rel="noopener noreferrer">arXiv:2509.24372</a></li></ol></section>
+<section class="card refs" id="refs" data-section="refs" aria-labelledby="refs-h"><h2 id="refs-h"><span class="h-t">参考文献</span></h2><ol class="references"><li id="ref-noise-repo">Noise repo, <a href="https://github.com/qlabs-eng/noise" target="_blank" rel="noopener noreferrer">qlabs-eng/noise</a></li><li id="ref-noise-pr44">Noise PR #44 identity path then Cut-lite (merged, 30M Track 2 3.4988 / ~8.3 min), <a href="https://github.com/qlabs-eng/noise/pull/44" target="_blank" rel="noopener noreferrer">qlabs-eng/noise#44</a></li><li id="ref-noise-pr45">Noise PR #45 Track 3 quarter-turn + exact future probes (open, claim 3.3778 / ~3 h 50 min), <a href="https://github.com/qlabs-eng/noise/pull/45" target="_blank" rel="noopener noreferrer">qlabs-eng/noise#45</a></li><li id="ref-noise-pr46">Noise PR #46 Track 1 forward cross-token readout (open, claim 3.3385 / ~56 min), <a href="https://github.com/qlabs-eng/noise/pull/46" target="_blank" rel="noopener noreferrer">qlabs-eng/noise#46</a></li><li id="ref-noise-archive-10m">Noise 10M archive README, <a href="https://github.com/qlabs-eng/noise/blob/main/archive/10M/README.md" target="_blank" rel="noopener noreferrer">qlabs-eng/noise archive/10M</a></li><li id="ref-dust-paper">Dust: Pretraining Transformers Without Backpropagation, <a href="https://qlabs.sh/research/dust/" target="_blank" rel="noopener noreferrer">qlabs.sh/research/dust</a></li><li id="ref-dust-code">Dust code, <a href="https://github.com/qlabs-eng/dust" target="_blank" rel="noopener noreferrer">qlabs-eng/dust</a></li><li id="ref-eggroll">EGGROLL, <a href="https://arxiv.org/abs/2511.16652" target="_blank" rel="noopener noreferrer">arXiv:2511.16652</a></li><li id="ref-samip-dust4">Samip Dust thread 4/4, <a href="https://x.com/industriaalist/status/2107194546216165610" target="_blank" rel="noopener noreferrer">@industriaalist</a></li><li id="ref-noise-page">Noise speedrun, <a href="https://qlabs.sh/noise/" target="_blank" rel="noopener noreferrer">qlabs.sh/noise</a></li><li id="ref-boost-cut-post">Boost → Cut announcement, <a href="https://x.com/spicey_lemonade/status/2111636408540799141" target="_blank" rel="noopener noreferrer">@spicey_lemonade</a></li><li id="ref-boost-cut-code">Boost → Cut code, <a href="https://github.com/spicylemonade/boost-cut" target="_blank" rel="noopener noreferrer">spicylemonade/boost-cut</a></li><li id="ref-boost-cut-2p3x">Author clarifies 2.3× vs 9.4×, <a href="https://x.com/spicey_lemonade/status/2111886525734764840" target="_blank" rel="noopener noreferrer">@spicey_lemonade</a></li><li id="ref-cammarata-essay">Nick Cammarata, <a href="https://www.goodfire.com/research/already-clean" target="_blank" rel="noopener noreferrer">Neural Networks Are Already Clean</a></li><li id="ref-leo-gao-critique">Leo Gao critique, <a href="https://x.com/nabla_theta/status/2111738788988977454" target="_blank" rel="noopener noreferrer">@nabla_theta</a></li><li id="ref-samip-adam">Samip on Adam coevolution, <a href="https://x.com/industriaalist/status/2107217747533033770" target="_blank" rel="noopener noreferrer">@industriaalist</a></li><li id="ref-noise-pr20">Noise PR #20 Relay (closed, unmerged), <a href="https://github.com/qlabs-eng/noise/pull/20" target="_blank" rel="noopener noreferrer">qlabs-eng/noise#20</a></li><li id="ref-noise-pr23">Noise PR #23 value path in Cut (merged as Track 1 #11, val 3.777), <a href="https://github.com/qlabs-eng/noise/pull/23" target="_blank" rel="noopener noreferrer">qlabs-eng/noise#23</a></li><li id="ref-noise-pr35">Noise PR #35 first hop + VQ remainder (merged as 10M Track 1 #13, val 3.707), <a href="https://github.com/qlabs-eng/noise/pull/35" target="_blank" rel="noopener noreferrer">qlabs-eng/noise#35</a></li><li id="ref-noise-pr40">Noise PR #40 Noise with merge (merged as 10M Track 1 #14, val 3.676), <a href="https://github.com/qlabs-eng/noise/pull/40" target="_blank" rel="noopener noreferrer">qlabs-eng/noise#40</a></li><li id="ref-noise-pr41">Noise PR #41 faster update (merged as 10M Track 2 #21, val 4.185 / 1.7 s), <a href="https://github.com/qlabs-eng/noise/pull/41" target="_blank" rel="noopener noreferrer">qlabs-eng/noise#41</a></li><li id="ref-noise-pr42">Noise PR #42 16 rows / 250 updates (merged as 10M Track 2 #22, val 4.186 / 1.6 s), <a href="https://github.com/qlabs-eng/noise/pull/42" target="_blank" rel="noopener noreferrer">qlabs-eng/noise#42</a></li><li id="ref-noise-pr17">Noise PR #17 CutBI (closed by author, unmerged), <a href="https://github.com/qlabs-eng/noise/pull/17" target="_blank" rel="noopener noreferrer">qlabs-eng/noise#17</a></li><li id="ref-es-salimans">Salimans et al. 2017, <a href="https://arxiv.org/abs/1703.03864" target="_blank" rel="noopener noreferrer">arXiv:1703.03864</a></li><li id="ref-mezo">MeZO, <a href="https://arxiv.org/abs/2305.17333" target="_blank" rel="noopener noreferrer">arXiv:2305.17333</a></li><li id="ref-vegesna-dahal">Decoupling Search and Learning, <a href="https://arxiv.org/abs/2509.10973" target="_blank" rel="noopener noreferrer">arXiv:2509.10973</a></li><li id="ref-es-at-scale">ES at Scale, <a href="https://arxiv.org/abs/2509.24372" target="_blank" rel="noopener noreferrer">arXiv:2509.24372</a></li></ol></section>
     </article>
 
     <nav class="more" aria-label="其他页面">
