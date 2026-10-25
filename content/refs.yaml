@@ -33,3 +33,4 @@ noise-pr41: "Noise PR #41 faster update (merged as 10M Track 2 #21, val 4.185 / 
 noise-pr42: "Noise PR #42 16 rows / 250 updates (merged as 10M Track 2 #22, val 4.186 / 1.6 s), [qlabs-eng/noise#42](https://github.com/qlabs-eng/noise/pull/42)"
 noise-archive-10m: "Noise 10M archive README, [qlabs-eng/noise archive/10M](https://github.com/qlabs-eng/noise/blob/main/archive/10M/README.md)"
 noise-pr44: "Noise PR #44 identity path then Cut-lite (merged, 30M Track 2 3.4988 / ~8.3 min), [qlabs-eng/noise#44](https://github.com/qlabs-eng/noise/pull/44)"
+noise-pr45: "Noise PR #45 Track 3 quarter-turn + exact future probes (open, claim 3.3778 / ~3 h 50 min), [qlabs-eng/noise#45](https://github.com/qlabs-eng/noise/pull/45)"
