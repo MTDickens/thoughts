@@ -40,3 +40,4 @@ noise-pr48: "Noise PR #48 Track 3 12x1024 + hashed n-gram value embeddings (merg
 noise-pr51: "Noise PR #51 Track 2 identity then Cut with paired MLP roots (merged as Track 2 #3, 3.494 / 2 min 3 s), [qlabs-eng/noise#51](https://github.com/qlabs-eng/noise/pull/51)"
 noise-pr52: "Noise PR #52 Track 2 #51 identity then two single roots + fused Gluon (merged as Track 2 #4, 3.498 / 22.9 s), [qlabs-eng/noise#52](https://github.com/qlabs-eng/noise/pull/52)"
 noise-pr53: "Noise PR #53 Track 2 fixed per-tensor merge table (closed unmerged; claimed 3.499 / 22.29 s), [qlabs-eng/noise#53](https://github.com/qlabs-eng/noise/pull/53)"
+noise-pr54: "Noise PR #54 Track 1 two-hop twin rows + transit decode (merged as Track 1 #4, 3.300 / 43 min), [qlabs-eng/noise#54](https://github.com/qlabs-eng/noise/pull/54)"

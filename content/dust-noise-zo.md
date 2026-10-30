@@ -3,22 +3,22 @@ title: Dust / Noise：无反向传播预训练与 Boost → Cut
 slug: dust-noise-zo
 short: Dust / Noise
 description: Q Labs 的 Dust 与 Noise、Boost → Cut 加速、bitter lesson 相关原话、以及零阶优化的学术背景。只记已核实事实。
-chips: [Dust, Noise, "30M 重置", "Track1 3.338", "Track3 3.211", "Track2 22.9s", 零阶优化]
+chips: [Dust, Noise, "30M 重置", "Track1 3.300", "Track3 3.211", "Track2 22.9s", 零阶优化]
 order: 50
-updated: 2026-10-30
+updated: 2026-10-31
 ---
 
-依据 Q Labs 论文与仓库、Noise 榜与 PR、Boost → Cut 作者帖与草稿论文、相关 X 原话。时间一律标台北时间（UTC+8）。榜单与开放 PR 会变；本文快照到 2026-10-30 约 11:30。
+依据 Q Labs 论文与仓库、Noise 榜与 PR、Boost → Cut 作者帖与草稿论文、相关 X 原话。时间一律标台北时间（UTC+8）。榜单与开放 PR 会变；本文快照到 2026-10-31 约 07:40。
 
 ## 1. 一句话结论 {#s1}
 
-> Dust 用激活扰动估计信用，不用反向传播。Noise 是固定设定下的无反传竞速赛。**2026-10-22 起训练数据从 10M token 升到 30M**；旧 10M 赛道整表归档到 `archive/10M/`，不再收新提交。现主榜三条赛道：Track 1（最低 val）、Track 2（到 val **3.5** 的最短时间）、Track 3（架构可改）。**台北 2026-10-26 约 23:58**，维护者同批合并 **#45 / #46 / #47 / #48**。Track 1 现纪录：**3.338 / 56 min**（PR **#46**，CharlesDDDD；forward readout of cross-token credit）。该值**低于**反传 ANVIL II + Adam **3.340**，也低于反传 Adam **3.419**。Track 3 现纪录：**3.211 / 约 2 h 57 min**（PR **#48**，RobertTLange；12×1024 GPT + hashed n-gram value embeddings + Cut-lite）。中间条目：#45 → Track 3 **3.378 / 3 h 50 min**；#47 → Track 3 **3.358 / 27 min**。**台北 2026-10-29 约 06:42**，维护者同批合并 Track 2 **#51 / #52**。Track 2 现官方短墙钟：**3.498 / 22.9 s**（README #4；PR **#52**，RobertTLange；在 #51 的 identity 上改单根 Cut + fused Gluon）。中间条目：#51 → README #3 **3.494 / 2 min 3 s**（conglu1997；paired MLP roots）；#44 → README #2 **3.499 / 8 min 20 s**。相对 #44，#52 约 **×21.8** 更快。另仍开放：**#10**（8×B300 curriculum，非官方 H100）。**台北 2026-10-30 约 03:14**，维护者关闭 Track 2 **#53**（自报 **3.499 / 22.29 s**；未合并）。Relay / CutBI 族仍关闭未合并。[@noise-repo; @noise-pr44; @noise-pr45; @noise-pr46; @noise-pr47; @noise-pr48; @noise-pr51; @noise-pr52; @noise-pr53; @noise-archive-10m]
+> Dust 用激活扰动估计信用，不用反向传播。Noise 是固定设定下的无反传竞速赛。**2026-10-22 起训练数据从 10M token 升到 30M**；旧 10M 赛道整表归档到 `archive/10M/`，不再收新提交。现主榜三条赛道：Track 1（最低 val）、Track 2（到 val **3.5** 的最短时间）、Track 3（架构可改）。**台北 2026-10-26 约 23:58**，维护者同批合并 **#45 / #46 / #47 / #48**。**台北 2026-10-31 约 04:50**，维护者合并 Track 1 **#54**。Track 1 现纪录：**3.300 / 43 min**（README #4；PR **#54**，CharlesDDDD；在 #46 上加 two-hop twin rows、transit decode 等）。中间条目：#46 → README #3 **3.338 / 56 min**。该值**低于**反传 ANVIL II + Adam **3.340**，也低于反传 Adam **3.419**。Track 3 现纪录：**3.211 / 约 2 h 57 min**（PR **#48**，RobertTLange；12×1024 GPT + hashed n-gram value embeddings + Cut-lite）。中间条目：#45 → Track 3 **3.378 / 3 h 50 min**；#47 → Track 3 **3.358 / 27 min**。**台北 2026-10-29 约 06:42**，维护者同批合并 Track 2 **#51 / #52**。Track 2 现官方短墙钟：**3.498 / 22.9 s**（README #4；PR **#52**，RobertTLange；在 #51 的 identity 上改单根 Cut + fused Gluon）。中间条目：#51 → README #3 **3.494 / 2 min 3 s**（conglu1997；paired MLP roots）；#44 → README #2 **3.499 / 8 min 20 s**。相对 #44，#52 约 **×21.8** 更快。另仍开放：**#10**（8×B300 curriculum，非官方 H100）。**台北 2026-10-30 约 03:14**，维护者关闭 Track 2 **#53**（自报 **3.499 / 22.29 s**；未合并）。Relay / CutBI 族仍关闭未合并。[@noise-repo; @noise-pr44; @noise-pr45; @noise-pr46; @noise-pr47; @noise-pr48; @noise-pr51; @noise-pr52; @noise-pr53; @noise-pr54; @noise-archive-10m]
 
-| 项 | 状态（2026-10-30 约 11:30） |
+| 项 | 状态（2026-10-31 约 07:40） |
 |---|---|
 | Dust 论文 | [qlabs.sh/research/dust](https://qlabs.sh/research/dust/)，无 arXiv 编号 |
 | 训练数据 | **30M** token（14,648 条 × 2048）；旧 **10M** 已归档 [@noise-archive-10m] |
-| Noise 主榜 Track 1 | val **3.338** / **56 min**（README #3；PR #46） |
+| Noise 主榜 Track 1 | val **3.300** / **43 min**（README #4；PR #54）；#46 → **3.338** / **56 min** |
 | Noise 主榜 Track 2 | 到 **3.5** 的时间；官方短墙钟 **3.498** / **22.9 s**（README #4；PR #52）；#51 → **3.494** / **2 min 3 s**；#44 → **3.499** / **8 min 20 s** |
 | Noise 主榜 Track 3 | val **3.211** / **约 2 h 57 min**（README #5；PR #48） |
 | 反传参考（30M README） | Adam + lr cooldown **3.419**；ANVIL II + Adam **3.340** |
@@ -67,7 +67,7 @@ updated: 2026-10-30
 
 ### 官方榜快照（已合并纪录） {#s3-board}
 
-> 以下为现行 **30M** README（2026-10-29 约 11:05 核对；含同批合并的 Track 2 **#51 / #52**）。数字会变。[@noise-repo; @noise-pr44; @noise-pr45; @noise-pr46; @noise-pr47; @noise-pr48; @noise-pr51; @noise-pr52]
+> 以下为现行 **30M** README（2026-10-31 约 07:40 核对；含 Track 1 **#54** 与 Track 2 **#51 / #52**）。数字会变。[@noise-repo; @noise-pr44; @noise-pr45; @noise-pr46; @noise-pr47; @noise-pr48; @noise-pr51; @noise-pr52; @noise-pr54]
 
 **Track 1（30M，val loss ↓）**
 
@@ -75,7 +75,8 @@ updated: 2026-10-30
 |---|---:|---|---|---|
 | 1 | 3.767 | Dust + Adam，24k population，lr cooldown | 5 h 17 min | – |
 | 2 | 3.409 | 10M 纪录 #14 配方迁入：Boost → Cut + own queries + exact values + future-token probes + end merge | 约 1 h 43 min | JaydenTeoh, spicylemonade, hoo0681, Lazarus-931, CharlesDDDD, NotDesigned |
-| **3** | **3.338** | **沿真实路径的 forward readout 量跨 token 信用；固定 Boost；更低 ANVIL II weight decay** | **56 min** | **CharlesDDDD** |
+| 3 | 3.338 | 沿真实路径的 forward readout 量跨 token 信用；固定 Boost；更低 ANVIL II weight decay | 56 min | CharlesDDDD |
+| **4** | **3.300** | **#3 + two-hop twin rows + transit decode；head transplants、self-distillation、planted previous-token head、linear decay** | **43 min** | **CharlesDDDD** |
 
 **Track 2（30M，到 3.5 的时间 ↓）**
 
@@ -96,7 +97,7 @@ updated: 2026-10-30
 | 4 | 3.358 | 6 blocks + hashed n-gram tables；moment-form probes | 27 min | Euraba |
 | **5** | **3.211** | **12×1024 GPT + hashed n-gram value embeddings；Cut-lite + input-key probes** | **约 2 h 57 min** | **RobertTLange** |
 
-> Track 1：无反传 **3.338** 已低于反传 Adam **3.419**，也低于 ANVIL II + Adam **3.340**。Track 3：榜首 **3.211**，相对反传参考差距更大（架构已放开）。Track 2：现官方短墙钟为 PR **#52** 的 **22.9 s**（README val **3.498**；PR 自报 **3.4976**）；#51 为中间条目 **3.494 / 2 min 3 s**；#44 为 **3.499 / 8 min 20 s**。
+> Track 1：无反传 **3.300**（PR **#54**）已低于反传 Adam **3.419**，也低于 ANVIL II + Adam **3.340**；中间条目 #46 为 **3.338**。Track 3：榜首 **3.211**，相对反传参考差距更大（架构已放开）。Track 2：现官方短墙钟为 PR **#52** 的 **22.9 s**（README val **3.498**；PR 自报 **3.4976**）；#51 为中间条目 **3.494 / 2 min 3 s**；#44 为 **3.499 / 8 min 20 s**。
 
 **10M 归档终局（不再收新提交）** [@noise-archive-10m]
 
@@ -214,6 +215,7 @@ Relay 族（#20/#21/#22）、CutBI（#17）与 Track 2 **#53**（per-tensor merg
 | **#48** 12×1024 + n-gram value embeddings | RobertTLange | 30M Track 3 #5：**3.211** / **约 2 h 57 min** | 同批合并；现 Track 3 榜首 [@noise-pr48] |
 | **#51** identity → paired MLP roots Cut | conglu1997 | 30M Track 2 #3：**3.494** / **2 min 3 s**（PR 自报 **3.4943** / **123.2 s**） | 台北 2026-10-29 约 06:42 合并；相对 #44 约 ×4.1 更快 [@noise-pr51] |
 | **#52** #51 identity → 两单根 + fused Gluon | RobertTLange | 30M Track 2 #4：**3.498** / **22.9 s**（PR 自报 **3.4976** / **22.89 s**） | 同批合并；相对 #44 约 ×21.8 更快；现 Track 2 短墙钟 [@noise-pr52] |
+| **#54** two-hop twin rows + transit decode | CharlesDDDD | 30M Track 1 #4：**3.300** / **43 min**（PR 自报 seed-0 merge 后 **3.2998**；seeds 0–4 均约 **3.3014**） | 台北 2026-10-31 约 04:50 合并；相对 #46 更低更快；现 Track 1 榜首 [@noise-pr54] |
 
 ### 已关闭未合并 {#s6-closed}
 
@@ -234,7 +236,7 @@ Relay 族（#20/#21/#22）、CutBI（#17）与 Track 2 **#53**（per-tensor merg
 
 | PR | 作者 | 自报 | 备注 |
 |---|---|---|---|
-| #10 | yanghu819 | Track 1 约 **3.9804**（短到长 context curriculum） | 硬件为 **8×B300**；未声称官方 H100 纪录。相对现行 Track 1 **3.338** 仍高很多。 |
+| #10 | yanghu819 | Track 1 约 **3.9804**（短到长 context curriculum） | 硬件为 **8×B300**；未声称官方 H100 纪录。相对现行 Track 1 **3.300** 仍高很多。 |
 
 ## 7. 学术史（仅背景） {#s7}
 
@@ -256,7 +258,7 @@ Relay 族（#20/#21/#22）、CutBI（#17）与 Track 2 **#53**（per-tensor merg
 - Boost → Cut 在 243M 的终配：草稿写 pending。
 - 维护者承诺澄清的规则边界（块间信用传递 / 不可微部件）：**待 README 再更新**（30M README 已写「精神裁定」）。
 - 30M Track 2 官方短墙钟：PR **#52**（RobertTLange）于台北 2026-10-29 约 06:42 合并，README **3.498 / 22.9 s**。同批合并 **#51**（conglu1997）为中间条目 **3.494 / 2 min 3 s**。#44 仍在表上为 **3.499 / 8 min 20 s**。[@noise-pr44; @noise-pr51; @noise-pr52]
-- 30M Track 1：PR **#46** 已于台北 2026-10-26 约 23:58 合并，官方 **3.338 / 56 min**。[@noise-pr46]
+- 30M Track 1：PR **#54** 已于台北 2026-10-31 约 04:50 合并，官方 **3.300 / 43 min**；#46 为中间条目 **3.338 / 56 min**。[@noise-pr46; @noise-pr54]
 - 30M Track 3：同批合并 **#45 / #47 / #48**；现榜首 **3.211 / 约 2 h 57 min**（#48）。[@noise-pr45; @noise-pr47; @noise-pr48]
 - Track 3 参数上限：README 仍未写硬上限；#47 表项约 336M 已入榜。后续规则是否收紧：**待观察**。
 - Track 2 **#53**（areu01or00，自报 **22.29 s**）于台北 2026-10-30 约 03:14 关闭未合并：per-tensor merge table 不算超参。官方短墙钟不变。[@noise-pr53]
@@ -267,7 +269,7 @@ Relay 族（#20/#21/#22）、CutBI（#17）与 Track 2 **#53**（per-tensor merg
 - [Dust 论文](https://qlabs.sh/research/dust/) · [Dust 代码](https://github.com/qlabs-eng/dust)
 - [Noise](https://qlabs.sh/noise/) · [Noise 仓库](https://github.com/qlabs-eng/noise) · [10M 归档](https://github.com/qlabs-eng/noise/blob/main/archive/10M/README.md)
 - [Boost → Cut](https://github.com/spicylemonade/boost-cut) · [作者帖](https://x.com/spicey_lemonade/status/2111636408540799141)
-- [PR #40](https://github.com/qlabs-eng/noise/pull/40)（已合并，10M #14 / 30M 配方来源） · [PR #42](https://github.com/qlabs-eng/noise/pull/42)（已合并，10M Track 2 1.6 s） · [PR #44](https://github.com/qlabs-eng/noise/pull/44)（已合并，30M Track 2 约 8.3 min） · [PR #46](https://github.com/qlabs-eng/noise/pull/46)（已合并，Track 1 3.338 / 56 min） · [PR #45](https://github.com/qlabs-eng/noise/pull/45)（已合并，Track 3 3.378） · [PR #47](https://github.com/qlabs-eng/noise/pull/47)（已合并，Track 3 3.358 / 27 min） · [PR #48](https://github.com/qlabs-eng/noise/pull/48)（已合并，Track 3 3.211） · [PR #51](https://github.com/qlabs-eng/noise/pull/51)（已合并，Track 2 3.494 / 2 min 3 s） · [PR #52](https://github.com/qlabs-eng/noise/pull/52)（已合并，Track 2 3.498 / 22.9 s）
+- [PR #40](https://github.com/qlabs-eng/noise/pull/40)（已合并，10M #14 / 30M 配方来源） · [PR #42](https://github.com/qlabs-eng/noise/pull/42)（已合并，10M Track 2 1.6 s） · [PR #44](https://github.com/qlabs-eng/noise/pull/44)（已合并，30M Track 2 约 8.3 min） · [PR #46](https://github.com/qlabs-eng/noise/pull/46)（已合并，Track 1 中间条目 3.338 / 56 min） · [PR #54](https://github.com/qlabs-eng/noise/pull/54)（已合并，Track 1 3.300 / 43 min） · [PR #45](https://github.com/qlabs-eng/noise/pull/45)（已合并，Track 3 3.378） · [PR #47](https://github.com/qlabs-eng/noise/pull/47)（已合并，Track 3 3.358 / 27 min） · [PR #48](https://github.com/qlabs-eng/noise/pull/48)（已合并，Track 3 3.211） · [PR #51](https://github.com/qlabs-eng/noise/pull/51)（已合并，Track 2 3.494 / 2 min 3 s） · [PR #52](https://github.com/qlabs-eng/noise/pull/52)（已合并，Track 2 3.498 / 22.9 s）
 - [PR #41](https://github.com/qlabs-eng/noise/pull/41) · [PR #35](https://github.com/qlabs-eng/noise/pull/35)（均已合并进 10M 归档）
 - [Relay PR #20](https://github.com/qlabs-eng/noise/pull/20) · [作者帖](https://x.com/EmanueleRodola/status/2112218292634939901)
 - [PR #53](https://github.com/qlabs-eng/noise/pull/53)（已关闭未合并，Track 2 per-tensor merge table）
