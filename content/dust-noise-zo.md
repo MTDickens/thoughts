@@ -5,7 +5,7 @@ short: Dust / Noise
 description: Q Labs 的 Dust 与 Noise、Boost → Cut 加速、bitter lesson 相关原话、以及零阶优化的学术背景。只记已核实事实。
 chips: [Dust, Noise, "30M 重置", "Track1 3.300", "Track3 3.211", "Track2 22.9s", 零阶优化]
 order: 50
-updated: 2026-10-31
+updated: 2026-11-01
 ---
 
 依据 Q Labs 论文与仓库、Noise 榜与 PR、Boost → Cut 作者帖与草稿论文、相关 X 原话。时间一律标台北时间（UTC+8）。榜单与开放 PR 会变；本文快照到 2026-10-31 约 07:40。
@@ -253,7 +253,7 @@ Relay 族（#20/#21/#22）、CutBI（#17）与 Track 2 **#53**（per-tensor merg
 ## 8. 仍未知 / 待跟 {#s8}
 
 - Dust 论文 venue / arXiv：**未知**。
-- ANVIL II（@Alaxarr）主文：**未知**。
+- ANVIL II：公开说明见 Hyperstition / Deven Pietrzak（NanoGPT **39.914 s** 文；双动量 + 6 次多项式谱整形 + 晚期 EMA）。Noise 侧把 ANVIL II 记到 **@Alaxarr**（Alazar M）；与 Pietrzak **不是同一人**。两边是否同一实现：**未核实**。[@anvil-ii-nanogpt; @anvil-iii-hyperstition; @alaxarr-x]
 - 30M 设定下反传的墙钟：Q Labs **未公布**（只给了 val）。
 - Boost → Cut 在 243M 的终配：草稿写 pending。
 - 维护者承诺澄清的规则边界（块间信用传递 / 不可微部件）：**待 README 再更新**（30M README 已写「精神裁定」）。
